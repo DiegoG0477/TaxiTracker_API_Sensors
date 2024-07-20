@@ -3,6 +3,7 @@ import os
 import pymysql.cursors
 from pymysql import converters
 from dotenv import load_dotenv
+from typing import Tuple, Any
 
 load_dotenv('local.env') 
 
@@ -50,8 +51,8 @@ class DatabaseConnector:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Database error: " + str(e),
             )
-
-    def query_put(self, sql, param):
+        
+    def query_post(self, sql, param):
         try:
             connection = self.get_connection()
             with connection:
@@ -65,14 +66,29 @@ class DatabaseConnector:
                 detail="Database error: " + str(e),
             )
         
-    def query_post(self, sql, param):
+    def query_post_travel(self, travel_data: Tuple[Any, ...]) -> int:
         try:
             connection = self.get_connection()
             with connection:
                 with connection.cursor() as cursor:
-                    cursor.execute(sql, param)
+                    # Insertar el viaje
+                    cursor.execute("""
+                        INSERT INTO travels (driver_id, date, start_hour, end_hour, start_coordinates, end_coordinates)
+                        VALUES (%s, %s, %s, %s, ST_GeomFromText(%s), ST_GeomFromText(%s))
+                        RETURNING id;
+                    """, travel_data)
+                    
+                    new_travel_id = cursor.fetchone()[0]
+                    
+                    # Actualizar travels_location
+                    cursor.execute("""
+                        UPDATE travels_location
+                        SET travel_id = %s
+                        WHERE travel_id = 9999;
+                    """, (new_travel_id,))
+                    
                     connection.commit()
-                    return cursor.lastrowid
+                    return new_travel_id
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

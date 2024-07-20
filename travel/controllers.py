@@ -1,4 +1,5 @@
 import json
+from typing import Any
 from fastapi import HTTPException, status
 from database.connector import DatabaseConnector
 from travel.models import (
@@ -21,10 +22,10 @@ def travel_init(travel_model: TravelInitRequestModel) -> str:
             detail="Driver not found"
         )
     
-    kit = get_kit_id()
+    kit_id = get_kit_id()
 
     # Iniciar el servicio de sensado
-    sensor_service.start_travel(kit['kit_id'], travel_model.driver_id)
+    sensor_service.start_travel(kit_id, travel_model.driver_id)
 
     # Insert the travel
     return database.query_post(
@@ -40,8 +41,7 @@ def travel_init(travel_model: TravelInitRequestModel) -> str:
         ),
     )
 
-
-def travel_finish(travel_model: TravelFinishRequestModel) -> str:
+def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     # get the last initiated travel
     init_data = get_last_init_travel()
     if not init_data:
@@ -58,31 +58,25 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> str:
         start_coordinates=init_data.start_coordinates,
         end_coordinates=travel_model.end_coordinates,
     )
-
+    
     # Detener el servicio de sensado
     sensor_service.end_travel()
-
+    
     message = json.dumps(travel.model_dump_json())
-
     # Send the travel to the RabbitMQ
     rabbitmq_service.send_message(message, "travel.register")
-
-    # Insert the complete travel
-    return database.query_post(
-        """
-        INSERT INTO travels (driver_id, date, start_hour, end_hour, start_coordinates, end_coordinates)
-        VALUES (%s, %s, %s, %s, ST_GeomFromText(%s), ST_GeomFromText(%s));
-        """,
-        (
-            travel.driver_id,
-            travel.date_day,
-            travel.start_datetime,
-            travel.end_datetime,
-            travel.start_coordinates,
-            travel.end_coordinates,
-        ),
-    )
-
+    
+    # Insert the complete travel and update travels_location
+    new_travel_id = database.query_post_travel((
+        travel.driver_id,
+        travel.date_day,
+        travel.start_datetime,
+        travel.end_datetime,
+        travel.start_coordinates,
+        travel.end_coordinates,
+    ))
+    
+    return new_travel_id
 
 def get_driver_by_id(id: str) -> dict:
     drivers = database.query_get(
