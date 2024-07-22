@@ -23,7 +23,7 @@ class RabbitMQService:
             'data': data,
             'event': event
         }
-        self.channel.basic_publish(exchange=self.exchange, body=json.dumps(message))
+        self.channel.basic_publish(exchange=self.exchange, routing_key='', body=json.dumps(message))
 
     def close_connection(self):
         self.connection.close()
