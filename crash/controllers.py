@@ -1,9 +1,8 @@
 import json
 from fastapi import HTTPException, status
 from database.connector import DatabaseConnector
-from crash.models import CrashRequestModel, CrashResponseModel
+from crash.models import CrashRequestModel
 from services.rabbitmq_service import RabbitMQService
-from services.sensors_service import sensor_service
 
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
