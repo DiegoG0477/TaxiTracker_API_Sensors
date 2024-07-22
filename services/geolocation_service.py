@@ -4,13 +4,14 @@ import json
 import serial
 import pynmea2
 from datetime import datetime
-from database.connector import get_db_connection
+from database.connector import DatabaseConnector
 from services.rabbitmq_service import RabbitMQService
 from geolocation.controllers import get_kit_id, get_last_driver_id
 
 class GeolocationService:
     def __init__(self, port="/dev/ttyAMA0", baudrate=9600, timeout=0.5):
         self.rabbitmq_service = RabbitMQService()
+        self.database = DatabaseConnector()
         self.driver_id = None
         self.kit_id = None
         self.running = True
@@ -45,7 +46,7 @@ class GeolocationService:
                 print(f"Error reading GPS data: {e}")
 
     def send_coordinates_periodically(self):
-        db_conn = get_db_connection()
+        db_conn = self.database.get_connection()
         cursor = db_conn.cursor()
         while self.running:
             point = f"POINT({self.current_coordinates['latitude']} {self.current_coordinates['longitude']})"
