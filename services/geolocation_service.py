@@ -19,12 +19,15 @@ class GeolocationService:
         self.ser = serial.Serial(port, baudrate=baudrate, timeout=timeout)
 
     def start(self):
-        self.thread = threading.Thread(target=self.read_gps_data)
-        self.thread.start()
-        self.thread_save_send = threading.Thread(target=self.send_coordinates_periodically)
-        self.thread_save_send.start()
-        self.kit_id = get_kit_id()
-        self.driver_id = get_last_driver_id()
+        try:
+            self.thread = threading.Thread(target=self.read_gps_data)
+            self.thread.start()
+            self.thread_save_send = threading.Thread(target=self.send_coordinates_periodically)
+            self.thread_save_send.start()
+            self.kit_id = get_kit_id()
+            self.driver_id = get_last_driver_id()
+        except Exception as e:
+            print(f"Error starting geolocation service: {e}")
 
     def stop(self):
         self.running = False
