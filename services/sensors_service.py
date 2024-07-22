@@ -1,8 +1,6 @@
 import datetime
 import threading
 import time
-import json
-from database.connector import get_db_connection
 from services.geolocation_service import geolocation_service
 from crash.controllers import register_crash
 from crash.models import CrashRequestModel

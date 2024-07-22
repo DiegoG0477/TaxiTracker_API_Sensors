@@ -97,7 +97,6 @@ def get_driver_by_id(id: str) -> dict:
         )
     return drivers[0]
 
-
 def get_last_init_travel() -> dict:
     travel = database.query_get(
         """
