@@ -16,7 +16,7 @@ class RabbitMQService:
         credentials = pika.PlainCredentials(self.username, self.password)
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host, port=self.port, credentials=credentials))
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange=self.exchange, exchange_type='topic')
+        self.channel.exchange_declare(exchange=self.exchange, exchange_type='topic', durable=True)
 
     def send_message(self, data, event):
         message = {
