@@ -13,8 +13,23 @@ database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
 
 def register_driving(driving_model: DrivingModel) -> str:
-    try:
-        rabbitmq_service.send_message(json.dumps(driving_model.model_dump_json()), "driving.tracking")
+    try:                
+        message = json.dumps({
+            "kit_id": driving_model.kit_id,
+            "driver_id": driving_model.driver_id,
+            "travel_id": driving_model.travel_id,
+            "datetime": driving_model.datetime,
+            "acceleration": driving_model.acceleration,
+            "deceleration": driving_model.deceleration,
+            "vibrations": driving_model.vibrations,
+            "travel_coordinates": driving_model.travel_coordinates,
+            "inclination_angle": driving_model.inclination_angle,
+            "angular_velocity": driving_model.angular_velocity,
+            "g_force_x": driving_model.g_force_x,
+            "g_force_y": driving_model.g_force_y,
+        })
+
+        rabbitmq_service.send_message(message, "driving.tracking")
 
         database.query_post(
             """

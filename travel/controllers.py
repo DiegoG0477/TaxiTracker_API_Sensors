@@ -82,8 +82,16 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
         raise HTTPException(status_code=400, detail="Invalid data")
 
     sensor_service.end_travel()
-    
-    message = json.dumps(travel.model_dump_json())
+
+    message = json.dumps({
+        "driver_id": travel.driver_id,
+        "date": travel.date_day,
+        "start_hour": travel.start_datetime,
+        "end_hour": travel.end_datetime,
+        "start_coordinates": travel.start_coordinates,
+        "end_coordinates": travel.end_coordinates,
+    })
+
     rabbitmq_service.send_message(message, "travel.register")
 
     print("Travel finished:", message)
