@@ -35,6 +35,8 @@ class SensorService:
         self.vibrations = 0
         self.shocks = 0
 
+        self.last_shock_time = self.millis()
+
     # def start(self):
     #     if self.thread is None:
     #         self.thread = threading.Thread(target=self.process_sensor_data)
