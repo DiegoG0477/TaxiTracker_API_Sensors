@@ -3,6 +3,7 @@ import time
 import json
 import serial
 import pynmea2
+import asyncio
 from datetime import datetime
 from database.connector import DatabaseConnector
 from services.rabbitmq_service import RabbitMQService
@@ -18,6 +19,7 @@ class GeolocationService:
         self.current_coordinates = {'latitude': 0.0, 'longitude': 0.0}
         self.coordinates_valid = False
         self.ser = serial.Serial(port, baudrate=baudrate, timeout=timeout)
+        self.coordinates_lock = asyncio.Lock()
 
     def start(self):
         try:
@@ -45,7 +47,7 @@ class GeolocationService:
                     newmsg = pynmea2.parse(newdata)
                     if isinstance(newmsg, pynmea2.RMC):
                         if newmsg.status == 'A':
-                            self.current_coordinates = {'latitude': newmsg.latitude, 'longitude': newmsg.longitude}
+                            asyncio.run(self.update_coordinates({'latitude': newmsg.latitude, 'longitude': newmsg.longitude}))
                             self.coordinates_valid = True
                         else:
                             self.coordinates_valid = False
@@ -54,12 +56,16 @@ class GeolocationService:
                 print(f"Error reading GPS data: {e}")
                 self.coordinates_valid = False
 
+    async def update_coordinates(self, new_coordinates):
+        async with self.coordinates_lock:
+            self.current_coordinates = new_coordinates
+
     def send_coordinates_periodically(self):
         db_conn = self.database.get_connection()
         cursor = db_conn.cursor()
         while self.running:
             try:
-                coordinates = self.get_current_coordinates()
+                coordinates = asyncio.run(self.get_current_coordinates_async())
                 message = json.dumps({
                     "kit_id": self.kit_id,
                     "driver_id": self.driver_id,
@@ -68,7 +74,7 @@ class GeolocationService:
                 })
 
                 if self.coordinates_valid:
-                    point = f"POINT({self.current_coordinates['latitude']} {self.current_coordinates['longitude']})"
+                    point = f"POINT({coordinates['latitude']} {coordinates['longitude']})"
                     cursor.execute(
                         "INSERT INTO geolocation (coordinates, geo_time) VALUES (ST_GeomFromText(%s), %s)",
                         (point, datetime.now())
@@ -76,7 +82,6 @@ class GeolocationService:
                     db_conn.commit()
                     self.rabbitmq_service.send_message(message, "geolocation.update")
                 else:
-                    # print("GPS coordinates are not valid or sensor is calibrating.")
                     self.rabbitmq_service.send_message(json.dumps({
                         "kit_id": self.kit_id,
                         "driver_id": self.driver_id,
@@ -88,12 +93,12 @@ class GeolocationService:
                 print(f"Error saving coordinates to DB or sending to RabbitMQ: {e}")
             time.sleep(3)
 
-    def get_current_coordinates(self):
-        if self.coordinates_valid:
-            coordinates = self.current_coordinates
-            return f"POINT({coordinates['latitude']} {coordinates['longitude']})"
-        else:
-            return "Coordinates not valid or sensor calibrating"
+    async def get_current_coordinates_async(self):
+        async with self.coordinates_lock:
+            if self.coordinates_valid:
+                return self.current_coordinates
+            else:
+                return "Coordinates not valid or sensor calibrating"
 
 # Inicializar el servicio de geolocalización
 geolocation_service = GeolocationService()
