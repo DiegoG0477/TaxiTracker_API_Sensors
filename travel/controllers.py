@@ -104,6 +104,7 @@ def get_last_init_travel() -> dict:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No travel found"
         )
+    print("Travel found:", travel)
     return travel[0]
 
 def get_kit_id() -> str:
