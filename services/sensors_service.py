@@ -82,7 +82,7 @@ class SensorService:
             self.is_traveling = True
         logger.info(f"Starting travel for kit_id: {kit_id}, driver_id: {driver_id}")
 
-    def stop_travel(self):
+    def end_travel(self):
         with self.lock:
             self.is_traveling = False
             self.kit_id = None
