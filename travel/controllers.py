@@ -44,11 +44,11 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
         )
     
     travel = TravelEntityModel(
-        driver_id=init_data.driver_id,
-        date_day=init_data.date_day,
-        start_datetime=init_data.start_datetime,
+        driver_id=init_data["driver_id"],
+        date_day=init_data["date_day"],
+        start_datetime=init_data["start_datetime"],
         end_datetime=travel_model.end_datetime,
-        start_coordinates=init_data.start_coordinates,
+        start_coordinates=init_data["start_coordinates"],
         end_coordinates=travel_model.end_coordinates,
     )
     
@@ -127,6 +127,8 @@ def get_kit_id() -> str:
     else:
         raise ValueError("Unexpected result format from query_get")
     
+
+
 def insert_driver(id: str) -> dict:
 
     kit_id = get_kit_id()
