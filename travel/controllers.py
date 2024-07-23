@@ -14,33 +14,24 @@ database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
 
 def travel_init(travel_model: TravelInitControllerModel) -> str:
-    # Check if the driver exists on the local db, if not, add it
-    driver = get_driver_by_id(travel_model.driver_id)
-    if not driver:
-        insert_driver(travel_model.driver_id)
-    
-    kit_id = get_kit_id()
-
-    print("travel initialization", travel_model)
-
-    # Iniciar el servicio de sensado
-    sensor_service.start_travel(kit_id, travel_model.driver_id)
-
-    # Insert the travel
-    return database.query_post(
-        """
-        INSERT INTO init_travels (driver_id, date, start_hour, start_coordinates)
-        VALUES (%s, %s, %s, ST_GeomFromText(%s));
-        """,
-        (
-            travel_model.driver_id,
-            travel_model.date_day,
-            travel_model.start_datetime,
-            travel_model.start_coordinates,
-        ),
-    )
-
-    # return travel_model
+    try:
+        # Your existing code here
+        database.query_post(
+            """
+            INSERT INTO init_travels (driver_id, date, start_hour, start_coordinates)
+            VALUES (%s, %s, %s, ST_GeomFromText(%s));
+            """,
+            (
+                travel_model.driver_id,
+                travel_model.date_day,
+                travel_model.start_datetime,
+                travel_model.start_coordinates,
+            ),
+        )
+        return travel_model
+    except Exception as e:
+        print(f"Error in travel_init: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     # get the last initiated travel
