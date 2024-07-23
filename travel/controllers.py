@@ -38,7 +38,7 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
         ),
     )
 
-    return travel_model.json()
+    return travel_model
 
 def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     # get the last initiated travel
