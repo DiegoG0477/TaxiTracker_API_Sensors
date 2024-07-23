@@ -41,9 +41,7 @@ def get_driver_by_id(id: str) -> dict:
         """
         SELECT
         drivers.id,
-        drivers.kit_id,
-        drivers.name,
-        drivers.last_name
+        drivers.kit_id
         FROM drivers
         WHERE id = %s
         """,
@@ -62,8 +60,6 @@ def get_driver_by_id(id: str) -> dict:
         return {
             "id": driver[0],
             "kit_id": driver[1],
-            "name": driver[2],
-            "last_name": driver[3]
         }
     else:
         raise ValueError("Unexpected result format from query_get")

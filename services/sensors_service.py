@@ -86,6 +86,8 @@ class SensorService:
                         )
 
                         register_driving(driving_data)
+
+                        print("Driving data:", driving_data)
                 else:
                     time.sleep(1)  # Esperar un segundo si no está viajando
 
