@@ -30,7 +30,9 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
             )
 
         try:
-            database.query_post(
+            sensor_service.start_travel(kit_id, driver_id)
+
+            result = database.query_post(
                 """
                 INSERT INTO init_travels (driver_id, date, start_hour, start_coordinates)
                 VALUES (%s, %s, %s, ST_GeomFromText(%s));
@@ -43,9 +45,8 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
                 ),
             )
 
-            sensor_service.start_travel(kit_id, driver_id)
-
-            return travel_model
+            # return travel_model
+            return result
         except Exception as e:
             logger.error(f"Error starting travel: {e}")
             raise HTTPException(status_code=500, detail=str(e))
