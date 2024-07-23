@@ -2,7 +2,12 @@ import json
 from fastapi import HTTPException, status
 from database.connector import DatabaseConnector
 from driving.models import DrivingModel
+import time
 from services.rabbitmq_service import RabbitMQService
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
@@ -57,3 +62,17 @@ def register_driving(driving_model: DrivingModel) -> str:
         return "Driving data registered successfully"
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    
+
+
+def register_driving_with_retry(driving_data, max_retries=3, retry_delay=1):
+    for attempt in range(max_retries):
+        try:
+            register_driving(driving_data)
+            logger.info(f"Driving data registered successfully: {driving_data}")
+            return
+        except Exception as e:
+            logger.error(f"Error registering driving data (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+    logger.error(f"Failed to register driving data after {max_retries} attempts")
