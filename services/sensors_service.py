@@ -109,6 +109,7 @@ class SensorService:
                 else:
                     time.sleep(1)  # Esperar un segundo si no está viajando
 
+
     def read_sensors(self):
         # Leer valores del acelerómetro y giroscopio
         acc_x = self.read_raw_data(self.ACCEL_XOUT)
