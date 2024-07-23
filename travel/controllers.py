@@ -22,7 +22,6 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
     try:
         kit_id = get_kit_id()
         driver_id = travel_model.driver_id
-
         if not kit_id or not driver_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -30,8 +29,6 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
             )
 
         try:
-            sensor_service.start_travel(kit_id, driver_id)
-
             result = database.query_post(
                 """
                 INSERT INTO init_travels (driver_id, date, start_hour, start_coordinates)
@@ -44,6 +41,8 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
                     travel_model.start_coordinates,
                 ),
             )
+
+            sensor_service.start_travel(kit_id, driver_id)
 
             # return travel_model
             return result
@@ -97,16 +96,21 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
 
     print("Travel finished:", message)
     
-    new_travel_id = database.query_post_travel((
-        travel.driver_id,
-        travel.date_day,
-        travel.start_datetime,
-        travel.end_datetime,
-        travel.start_coordinates,
-        travel.end_coordinates,
-    ))
+    try:
+        new_travel_id = database.query_post_travel((
+            travel.driver_id,
+            travel.date_day,
+            travel.start_datetime,
+            travel.end_datetime,
+            travel.start_coordinates,
+            travel.end_coordinates,
+        ))
+    except Exception as e:
+        logger.error(f"Error inserting travel into database: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     return travel
+
 
 def get_driver_by_id(id: str) -> Optional[dict]:
     drivers = database.query_get(
@@ -145,25 +149,28 @@ def get_last_init_travel() -> dict:
     return travel[0]
 
 def get_kit_id() -> str:
-    kit = database.query_get(
-        """
-        SELECT
-        kit_id
-        FROM kit
-        """
-    )
-    if len(kit) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="No kit found"
+    try:
+        kit = database.query_get(
+            """
+            SELECT
+            kit_id
+            FROM kit
+            """
         )
-    kit = kit[0]
-    if isinstance(kit, dict):
-        return kit["kit_id"]
-    elif isinstance(kit, (tuple, list)):
-        return kit[0]
-    else:
-        raise ValueError("Unexpected result format from query_get")
-    
+        if len(kit) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No kit found"
+            )
+        kit = kit[0]
+        if isinstance(kit, dict):
+            return kit["kit_id"]
+        elif isinstance(kit, (tuple, list)):
+            return kit[0]
+        else:
+            raise ValueError("Unexpected result format from query_get")
+    except Exception as e:
+        logger.error(f"Error getting kit ID: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def insert_driver(id: str) -> dict:
