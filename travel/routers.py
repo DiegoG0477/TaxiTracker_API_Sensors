@@ -19,6 +19,9 @@ def travel_init_api(request: TravelInitRequestModel):
     """
     This travel init API allow you to start a travel.
     """
+
+    print('request', request)
+
     coordinates = geolocation_service.get_current_coordinates()
     travel_details = TravelInitControllerModel(
         driver_id=request.driver_id,

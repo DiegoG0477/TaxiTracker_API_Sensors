@@ -15,7 +15,9 @@ rabbitmq_service = RabbitMQService()
 
 def travel_init(travel_model: TravelInitControllerModel) -> str:
     try:
-        sensor_service.start_travel()
+        kit_id = get_kit_id()
+
+        sensor_service.start_travel(kit_id, travel_model.driver_id)
 
         database.query_post(
             """
@@ -47,7 +49,7 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     travel = TravelEntityModel(
         driver_id=init_data["driver_id"],
         date_day=init_data["date"],
-        start_datetime=init_data["start_datetime"],
+        start_datetime=init_data["start_hour"],
         end_datetime=travel_model.end_datetime,
         start_coordinates=init_data["start_coordinates"],
         end_coordinates=travel_model.end_coordinates,
