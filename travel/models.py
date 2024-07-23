@@ -7,23 +7,23 @@ class TravelInitRequestModel(BaseModel):
 class TravelInitControllerModel(BaseModel):
     driver_id: str
     date_day: datetime
-    start_datetime: str
+    start_datetime: datetime
     start_coordinates: str
 
 class TravelFinishRequestModel(BaseModel):
-    end_datetime: str
+    end_datetime: datetime
     end_coordinates: str
 
 class TravelInitResponseModel(BaseModel):
     driver_id: str
     date_day: datetime
-    start_datetime: str
+    start_datetime: datetime
     start_coordinates: str
 
 class TravelEntityModel(BaseModel):
     driver_id: str
     date_day: datetime
-    start_datetime: str
+    start_datetime: datetime
     start_coordinates: str
-    end_datetime: str
+    end_datetime: datetime
     end_coordinates: str
