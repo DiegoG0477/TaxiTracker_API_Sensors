@@ -20,20 +20,23 @@ def travel_init_api(request: TravelInitRequestModel):
     This travel init API allow you to start a travel.
     """
 
-    print('request:', request)
+    try:
+        print('request:', request)
 
-    coordinates = geolocation_service.get_current_coordinates()
-    travel_details = TravelInitControllerModel(
-        driver_id=request.driver_id,
-        date_day=datetime.now().date(),
-        start_datetime=datetime.now().isoformat(),
-        start_coordinates=coordinates
-    )
+        coordinates = geolocation_service.get_current_coordinates()
+        travel_details = TravelInitControllerModel(
+            driver_id=request.driver_id,
+            date_day=datetime.now().date(),
+            start_datetime=datetime.now().isoformat(),
+            start_coordinates=coordinates
+        )
 
-    print('travel_details:', travel_details)
+        print('travel_details:', travel_details)
 
-    travel = travel_init(travel_details)
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(travel))
+        travel = travel_init(travel_details)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(travel))
+    except Exception as e:
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": str(e)})
 
 
 @router.post("/travels/finish", response_model=TravelEntityModel)
