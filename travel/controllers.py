@@ -18,15 +18,15 @@ logger = logging.getLogger(__name__)
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
 
-async def travel_init(travel_model: TravelInitControllerModel) -> Any:
+async def travel_init(travel_model: TravelInitControllerModel) -> dict:
     try:
         kit_id = get_kit_id()
         driver_id = travel_model.driver_id
 
         if not kit_id or not driver_id:
-            return JSONResponse(
-                status_code=400,
-                content={"error": "kit_id and driver_id are required"}
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No kit or driver found"
             )
 
         try:
@@ -44,11 +44,13 @@ async def travel_init(travel_model: TravelInitControllerModel) -> Any:
             )
 
             sensor_service.start_travel(kit_id, driver_id)
-            
-            return JSONResponse(
-                status_code=200,
-                content={"message": "Travel started successfully"}
-            )
+
+            return {
+                "driver_id": driver_id,
+                "date_day": travel_model.date_day,
+                "start_datetime": travel_model.start_datetime,
+                "start_coordinates": travel_model.start_coordinates,
+            }
         except Exception as e:
             logger.error(f"Error starting travel: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -56,7 +58,6 @@ async def travel_init(travel_model: TravelInitControllerModel) -> Any:
     except Exception as e:
         logger.error(f"Error in travel_init: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     # get the last initiated travel
