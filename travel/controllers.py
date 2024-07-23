@@ -14,13 +14,10 @@ database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
 
 def travel_init(travel_model: TravelInitControllerModel) -> str:
-    # Check if the driver exists
+    # Check if the driver exists on the local db, if not, add it
     driver = get_driver_by_id(travel_model.driver_id)
     if not driver:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Driver not found"
-        )
+        insert_driver(travel_model.driver_id)
     
     kit_id = get_kit_id()
 
@@ -83,9 +80,6 @@ def get_driver_by_id(id: str) -> dict:
         """
         SELECT
             drivers.id,
-            drivers.kit_id,
-            drivers.name,
-            drivers.last_name
         FROM drivers
         WHERE id = %s
         """,
@@ -135,3 +129,15 @@ def get_kit_id() -> str:
         return kit[0]
     else:
         raise ValueError("Unexpected result format from query_get")
+    
+def insert_driver(id: str) -> dict:
+
+    kit_id = get_kit_id()
+
+    return database.query_post(
+        """
+        INSERT INTO drivers (id, kit_id)
+        VALUES (%s, %s)
+        """,
+        (id, kit_id),
+    )
