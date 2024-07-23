@@ -78,27 +78,34 @@ class SensorService:
                         sensor_data.append(data)
                         self.check_for_collision(data)
                         time.sleep(0.5)
+                    
                     if sensor_data:  # Solo procesar si hay datos
                         average_data = self.calculate_averages(sensor_data)
+                        
+                        try:
+                            coordinates = geolocation_service.get_current_coordinates()
+                            if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
+                                coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
 
-                        driving_data = DrivingModel(
-                            kit_id=self.kit_id,
-                            driver_id=self.driver_id,
-                            travel_id=9999,
-                            datetime=datetime.now().isoformat(),
-                            acceleration=average_data['avg_acceleration'],
-                            deceleration=average_data['avg_deceleration'],
-                            vibrations=average_data['vibrations'],
-                            travel_coordinates=geolocation_service.get_current_coordinates(),
-                            inclination_angle=average_data['avg_inclination_angle'],
-                            angular_velocity=average_data['avg_angular_velocity'],
-                            g_force_x=average_data['avg_g_force_x'],
-                            g_force_y=average_data['avg_g_force_y']
-                        )
-
-                        register_driving(driving_data)
-
-                        print("Driving data:", driving_data)
+                            driving_data = DrivingModel(
+                                kit_id=self.kit_id,
+                                driver_id=self.driver_id,
+                                travel_id=9999,
+                                datetime=datetime.now().isoformat(),
+                                acceleration=average_data['avg_acceleration'],
+                                deceleration=average_data['avg_deceleration'],
+                                vibrations=average_data['vibrations'],
+                                travel_coordinates=coordinates,
+                                inclination_angle=average_data['avg_inclination_angle'],
+                                angular_velocity=average_data['avg_angular_velocity'],
+                                g_force_x=average_data['avg_g_force_x'],
+                                g_force_y=average_data['avg_g_force_y']
+                            )
+                            
+                            register_driving(driving_data)
+                            print("Driving data:", driving_data)
+                        except Exception as e:
+                            print(f"Error processing driving data: {e}")
                 else:
                     time.sleep(1)  # Esperar un segundo si no está viajando
 
