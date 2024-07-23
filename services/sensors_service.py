@@ -8,11 +8,15 @@ from driving.models import DrivingModel
 from driving.controllers import register_driving
 from gpiozero import InputDevice
 import smbus
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class SensorService:
     G_FORCE_THRESHOLD = 3.5
     DEBOUNCE_TIME = 100
-    MAX_RETRIES = 3
+    MAX_RETRIES = 6
     RETRY_DELAY = 0.1
 
     def __init__(self):
@@ -28,9 +32,9 @@ class SensorService:
         self.shock_ky031 = InputDevice(27)
 
         # Configuración del MPU6050
-        self.bus = smbus.SMBus(1)
+        self.bus = None
         self.Device_Address = 0x69
-        self.MPU_Init()
+        self.initialize_i2c()
 
         # Variables para la vibración y el choque
         self.start_time = self.millis()
@@ -39,53 +43,75 @@ class SensorService:
 
         self.last_shock_time = self.millis()
 
-        self.bus = None
-        self.initialize_i2c()
-
-    def start(self):
-        if self.thread is None:
-            try:
-                print("Starting sensor service thread...")
-                self.thread = threading.Thread(target=self.process_sensor_data)
-                self.thread.start()
-            except Exception as e:
-                print(f"Error starting sensor service: {e}")
-
-    def stop(self):
-        with self.lock:
-            self.running = False
-        if self.thread:
-            self.thread.join()
-            self.thread = None
-
-    def start_travel(self, kit_id: str, driver_id: str):
-        print(f"Starting travel with kit_id: {kit_id} and driver_id: {driver_id}")
-        with self.lock:
-            self.is_traveling = True
-            self.kit_id = kit_id
-            self.driver_id = driver_id
-        
-        return True
-
-    def end_travel(self):
-        with self.lock:
-            self.is_traveling = False
-
     def initialize_i2c(self):
         retry_count = 0
         while retry_count < self.MAX_RETRIES:
             try:
                 self.bus = smbus.SMBus(1)
                 self.MPU_Init()
-                print("I2C bus initialized successfully")
+                logger.info("I2C bus initialized successfully")
                 break
             except OSError as e:
-                print(f"Error initializing I2C bus (attempt {retry_count + 1}): {e}")
+                logger.error(f"Error initializing I2C bus (attempt {retry_count + 1}): {e}")
                 retry_count += 1
                 time.sleep(self.RETRY_DELAY)
         
         if retry_count == self.MAX_RETRIES:
-            print("Failed to initialize I2C bus after multiple attempts")
+            logger.error("Failed to initialize I2C bus after multiple attempts")
+
+    def start(self):
+        if self.thread is None:
+            try:
+                logger.info("Starting sensor service thread...")
+                self.thread = threading.Thread(target=self.process_sensor_data)
+                self.thread.start()
+            except Exception as e:
+                logger.error(f"Error starting sensor service: {e}")
+
+    def process_sensor_data(self):
+        while self.running:
+            with self.lock:
+                if self.is_traveling:
+                    start_time = time.time()
+                    sensor_data = []
+                    while time.time() - start_time < 30 and self.is_traveling:
+                        data = self.read_sensors()
+                        if data is not None:
+                            sensor_data.append(data)
+                            logger.info(f"Sensor data: {data}")
+                            self.check_for_collision(data)
+                        else:
+                            logger.warning("Failed to read sensor data")
+                        time.sleep(0.5)
+                    
+                    if sensor_data:
+                        try:
+                            average_data = self.calculate_averages(sensor_data)
+                            coordinates = geolocation_service.get_current_coordinates()
+                            if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
+                                coordinates = "..."
+
+                            driving_data = DrivingModel(
+                                kit_id=self.kit_id,
+                                driver_id=self.driver_id,
+                                travel_id=9999,
+                                datetime=datetime.now().isoformat(),
+                                acceleration=average_data['avg_acceleration'],
+                                deceleration=average_data['avg_deceleration'],
+                                vibrations=average_data['vibrations'],
+                                travel_coordinates=coordinates,
+                                inclination_angle=average_data['avg_inclination_angle'],
+                                angular_velocity=average_data['avg_angular_velocity'],
+                                g_force_x=average_data['avg_g_force_x'],
+                                g_force_y=average_data['avg_g_force_y']
+                            )
+                            
+                            register_driving(driving_data)
+                            logger.info(f"Driving data: {driving_data}")
+                        except Exception as e:
+                            logger.error(f"Error processing driving data: {e}")
+                else:
+                    time.sleep(1)
 
     def read_sensors(self):
         retry_count = 0
@@ -130,14 +156,13 @@ class SensorService:
                     'g_force': self.calculate_g_force(Ax, Ay, Az)
                 }
             except OSError as e:
-                print(f"Error reading sensors (attempt {retry_count + 1}): {e}")
+                logger.error(f"Error reading sensors (attempt {retry_count + 1}): {e}")
                 retry_count += 1
                 time.sleep(self.RETRY_DELAY)
                 if retry_count == self.MAX_RETRIES:
-                    print("Failed to read sensors after multiple attempts")
-                    return None  # or return a default value
-                self.initialize_i2c()  # Try to reinitialize the I2C bus
-
+                    logger.error("Failed to read sensors after multiple attempts")
+                    return None
+                self.initialize_i2c()
     def read_raw_data(self, addr):
         retry_count = 0
         while retry_count < self.MAX_RETRIES:
