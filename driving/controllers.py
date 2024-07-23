@@ -18,7 +18,7 @@ def register_driving(driving_model: DrivingModel) -> str:
             "kit_id": driving_model.kit_id,
             "driver_id": driving_model.driver_id,
             "travel_id": driving_model.travel_id,
-            "datetime": driving_model.datetime,
+            "datetime": driving_model.datetime.isoformat(),
             "acceleration": driving_model.acceleration,
             "deceleration": driving_model.deceleration,
             "vibrations": driving_model.vibrations,
