@@ -1,6 +1,7 @@
 import json
 from typing import Any, Optional
 from fastapi import HTTPException, status
+from fastapi.responses import JSONResponse
 from database.connector import DatabaseConnector
 from travel.models import (
     TravelInitControllerModel, 
@@ -9,32 +10,53 @@ from travel.models import (
 )
 from services.rabbitmq_service import RabbitMQService
 from services.sensors_service import sensor_service
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
 
-def travel_init(travel_model: TravelInitControllerModel) -> str:
+async def travel_init(travel_model: TravelInitControllerModel) -> Any:
     try:
         kit_id = get_kit_id()
+        driver_id = travel_model.driver_id
 
-        sensor_service.start_travel(kit_id, travel_model.driver_id)
+        if not kit_id or not driver_id:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "kit_id and driver_id are required"}
+            )
 
-        database.query_post(
-            """
-            INSERT INTO init_travels (driver_id, date, start_hour, start_coordinates)
-            VALUES (%s, %s, %s, ST_GeomFromText(%s));
-            """,
-            (
-                travel_model.driver_id,
-                travel_model.date_day,
-                travel_model.start_datetime,
-                travel_model.start_coordinates,
-            ),
-        )
-        return travel_model
+        try:
+            database.query_post(
+                """
+                INSERT INTO init_travels (driver_id, date, start_hour, start_coordinates)
+                VALUES (%s, %s, %s, ST_GeomFromText(%s));
+                """,
+                (
+                    travel_model.driver_id,
+                    travel_model.date_day,
+                    travel_model.start_datetime,
+                    travel_model.start_coordinates,
+                ),
+            )
+
+            sensor_service.start_travel(kit_id, driver_id)
+            
+            return JSONResponse(
+                status_code=200,
+                content={"message": "Travel started successfully"}
+            )
+        except Exception as e:
+            logger.error(f"Error starting travel: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     except Exception as e:
-        print(f"Error in travel_init: {str(e)}")
+        logger.error(f"Error in travel_init: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     # get the last initiated travel

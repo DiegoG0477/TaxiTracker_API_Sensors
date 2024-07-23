@@ -68,6 +68,20 @@ class SensorService:
             except Exception as e:
                 logger.error(f"Error starting sensor service: {e}")
 
+    def start_travel(self, kit_id, driver_id):
+        with self.lock:
+            self.kit_id = kit_id
+            self.driver_id = driver_id
+            self.is_traveling = True
+        logger.info(f"Starting travel for kit_id: {kit_id}, driver_id: {driver_id}")
+
+    def stop_travel(self):
+        with self.lock:
+            self.is_traveling = False
+            self.kit_id = None
+            self.driver_id = None
+        logger.info("Travel stopped")
+
     def process_sensor_data(self):
         while self.running:
             with self.lock:
