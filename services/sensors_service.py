@@ -1,16 +1,18 @@
-from datetime import datetime
 import threading
 import time
+from datetime import datetime
+from gpiozero import InputDevice
+import smbus
 from services.geolocation_service import geolocation_service
 from crash.controllers import register_crash
 from crash.models import CrashRequestModel
 from driving.models import DrivingModel
 from driving.controllers import register_driving
-from gpiozero import InputDevice
-import smbus
 
 class SensorService:
-    G_FORCE_THRESHOLD = 2.5  # Umbral de fuerza G para detectar un choque (ajustar según sea necesario)
+    G_FORCE_THRESHOLD = 2.5
+    MAX_RETRIES = 3
+    RETRY_DELAY = 0.1
 
     def __init__(self):
         self.running = True
@@ -20,16 +22,13 @@ class SensorService:
         self.kit_id = None
         self.driver_id = None
 
-        # Configuración de los sensores de vibración y choque
         self.vibration_sw420 = InputDevice(17)
         self.shock_ky031 = InputDevice(27)
 
-        # Configuración del MPU6050
         self.bus = smbus.SMBus(1)
         self.Device_Address = 0x69
         self.MPU_Init()
 
-        # Variables para la vibración y el choque
         self.start_time = self.millis()
         self.vibrations = 0
         self.shocks = 0
@@ -64,12 +63,12 @@ class SensorService:
                     sensor_data = []
                     while time.time() - start_time < 30 and self.is_traveling:
                         data = self.read_sensors()
-                        sensor_data.append(data)
-                        self.check_for_collision(data)
+                        if data:
+                            sensor_data.append(data)
+                            self.check_for_collision(data)
                         time.sleep(0.5)
-                    if sensor_data:  # Solo procesar si hay datos
+                    if sensor_data:
                         average_data = self.calculate_averages(sensor_data)
-
                         driving_data = DrivingModel(
                             kit_id=self.kit_id,
                             driver_id=self.driver_id,
@@ -84,50 +83,54 @@ class SensorService:
                             g_force_x=average_data['avg_g_force_x'],
                             g_force_y=average_data['avg_g_force_y']
                         )
-
                         register_driving(driving_data)
-
                         print("Driving data:", driving_data)
                 else:
-                    time.sleep(1)  # Esperar un segundo si no está viajando
+                    time.sleep(1)
 
     def read_sensors(self):
-        # Leer valores del acelerómetro y giroscopio
-        acc_x = self.read_raw_data(self.ACCEL_XOUT)
-        acc_y = self.read_raw_data(self.ACCEL_YOUT)
-        acc_z = self.read_raw_data(self.ACCEL_ZOUT)
-        gyro_x = self.read_raw_data(self.GYRO_XOUT)
-        gyro_y = self.read_raw_data(self.GYRO_YOUT)
-        gyro_z = self.read_raw_data(self.GYRO_ZOUT)
+        try:
+            acc_x = self.read_raw_data(self.ACCEL_XOUT)
+            acc_y = self.read_raw_data(self.ACCEL_YOUT)
+            acc_z = self.read_raw_data(self.ACCEL_ZOUT)
+            gyro_x = self.read_raw_data(self.GYRO_XOUT)
+            gyro_y = self.read_raw_data(self.GYRO_YOUT)
+            gyro_z = self.read_raw_data(self.GYRO_ZOUT)
 
-        Ax = round(acc_x / 16384.0, 2)
-        Ay = round(acc_y / 16384.0, 2)
-        Az = round(acc_z / 16384.0, 2)
-        Axms = round(Ax * 9.81, 2)
-        Ayms = round(Ay * 9.81, 2)
-        Azms = round(Az * 9.81, 2)
-        Gx = round(gyro_x / 131.0, 2)
-        Gy = round(gyro_y / 131.0, 2)
-        Gz = round(gyro_z / 131.0, 2)
+            if None in (acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z):
+                print("Failed to read sensor data. Skipping this iteration.")
+                return None
 
-        if self.vibration_sw420.is_active:
-            self.vibrations += 1
-        if self.shock_ky031.is_active:
-            self.shocks += 1
+            Ax = round(acc_x / 16384.0, 2)
+            Ay = round(acc_y / 16384.0, 2)
+            Az = round(acc_z / 16384.0, 2)
+            Axms = round(Ax * 9.81, 2)
+            Ayms = round(Ay * 9.81, 2)
+            Azms = round(Az * 9.81, 2)
+            Gx = round(gyro_x / 131.0, 2)
+            Gy = round(gyro_y / 131.0, 2)
+            Gz = round(gyro_z / 131.0, 2)
 
-        angle = (Ay - 1) * 180 / (-2) + 0
-        angle = int(angle)
+            if self.vibration_sw420.is_active:
+                self.vibrations += 1
+            if self.shock_ky031.is_active:
+                self.shocks += 1
 
-        return {
-            'acc_x': Axms, 'acc_y': Ayms, 'acc_z': Azms,
-            'gyro_x': Gx, 'gyro_y': Gy, 'gyro_z': Gz,
-            'angle': angle,
-            'vibrations': self.vibrations,
-            'shocks': self.shocks,
-            'g_force_x': Ax,
-            'g_force_y': Ay,
-            'g_force': self.calculate_g_force(Ax, Ay, Az)
-        }
+            angle = int((Ay - 1) * 180 / (-2) + 0)
+
+            return {
+                'acc_x': Axms, 'acc_y': Ayms, 'acc_z': Azms,
+                'gyro_x': Gx, 'gyro_y': Gy, 'gyro_z': Gz,
+                'angle': angle,
+                'vibrations': self.vibrations,
+                'shocks': self.shocks,
+                'g_force_x': Ax,
+                'g_force_y': Ay,
+                'g_force': self.calculate_g_force(Ax, Ay, Az)
+            }
+        except Exception as e:
+            print(f"Unexpected error in read_sensors: {e}")
+            return None
 
     def calculate_averages(self, sensor_data):
         avg_data = {}
@@ -199,26 +202,36 @@ class SensorService:
             print("Collision detected:", relevant_data)
 
     def MPU_Init(self):
-        # Inicialización del MPU6050
-        self.bus.write_byte_data(self.Device_Address, self.SMPLRT_DIV, 7)
-        self.bus.write_byte_data(self.Device_Address, self.PWR_MGMT_1, 1)
-        self.bus.write_byte_data(self.Device_Address, self.CONFIG, 0)
-        self.bus.write_byte_data(self.Device_Address, self.GYRO_CONFIG, 24)
-        self.bus.write_byte_data(self.Device_Address, self.INT_ENABLE, 1)
+        try:
+            self.bus.write_byte_data(self.Device_Address, self.SMPLRT_DIV, 7)
+            self.bus.write_byte_data(self.Device_Address, self.PWR_MGMT_1, 1)
+            self.bus.write_byte_data(self.Device_Address, self.CONFIG, 0)
+            self.bus.write_byte_data(self.Device_Address, self.GYRO_CONFIG, 24)
+            self.bus.write_byte_data(self.Device_Address, self.INT_ENABLE, 1)
+        except OSError as e:
+            print(f"Error initializing MPU6050: {e}")
+            return False
+        return True
 
     def read_raw_data(self, addr):
-        # Leer datos crudos del MPU6050
-        high = self.bus.read_byte_data(self.Device_Address, addr)
-        low = self.bus.read_byte_data(self.Device_Address, addr + 1)
-        value = ((high << 8) | low)
-        if value > 32768:
-            value = value - 65536
-        return value
+        for _ in range(self.MAX_RETRIES):
+            try:
+                high = self.bus.read_byte_data(self.Device_Address, addr)
+                low = self.bus.read_byte_data(self.Device_Address, addr + 1)
+                value = ((high << 8) | low)
+                if value > 32768:
+                    value = value - 65536
+                return value
+            except OSError as e:
+                print(f"Error reading data: {e}. Retrying...")
+                time.sleep(self.RETRY_DELAY)
+        print("Failed to read data after multiple attempts")
+        return None
 
     def millis(self):
         return int(round(time.time() * 1000))
 
-    # Direcciones y registros del MPU6050
+    # MPU6050 Registers
     PWR_MGMT_1 = 0x6B
     SMPLRT_DIV = 0x19
     CONFIG = 0x1A
@@ -231,5 +244,5 @@ class SensorService:
     GYRO_YOUT = 0x45
     GYRO_ZOUT = 0x47
 
-# Crear una instancia de SensorService
+# Create an instance of SensorService
 sensor_service = SensorService()
