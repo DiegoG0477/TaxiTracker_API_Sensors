@@ -10,8 +10,10 @@ from gpiozero import InputDevice
 import smbus
 
 class SensorService:
-    G_FORCE_THRESHOLD = 3.5  # Umbral de fuerza G para detectar un choque (ajustar según sea necesario)
+    G_FORCE_THRESHOLD = 3.5
     DEBOUNCE_TIME = 100
+    MAX_RETRIES = 3
+    RETRY_DELAY = 0.1
 
     def __init__(self):
         self.running = True
@@ -37,10 +39,9 @@ class SensorService:
 
         self.last_shock_time = self.millis()
 
-    # def start(self):
-    #     if self.thread is None:
-    #         self.thread = threading.Thread(target=self.process_sensor_data)
-    #         self.thread.start()
+        self.bus = None
+        self.initialize_i2c()
+
     def start(self):
         if self.thread is None:
             try:
@@ -63,11 +64,98 @@ class SensorService:
             self.is_traveling = True
             self.kit_id = kit_id
             self.driver_id = driver_id
-
+        
+        return True
 
     def end_travel(self):
         with self.lock:
             self.is_traveling = False
+
+    def initialize_i2c(self):
+        retry_count = 0
+        while retry_count < self.MAX_RETRIES:
+            try:
+                self.bus = smbus.SMBus(1)
+                self.MPU_Init()
+                print("I2C bus initialized successfully")
+                break
+            except OSError as e:
+                print(f"Error initializing I2C bus (attempt {retry_count + 1}): {e}")
+                retry_count += 1
+                time.sleep(self.RETRY_DELAY)
+        
+        if retry_count == self.MAX_RETRIES:
+            print("Failed to initialize I2C bus after multiple attempts")
+
+    def read_sensors(self):
+        retry_count = 0
+        while retry_count < self.MAX_RETRIES:
+            try:
+                acc_x = self.read_raw_data(self.ACCEL_XOUT)
+                acc_y = self.read_raw_data(self.ACCEL_YOUT)
+                acc_z = self.read_raw_data(self.ACCEL_ZOUT)
+                gyro_x = self.read_raw_data(self.GYRO_XOUT)
+                gyro_y = self.read_raw_data(self.GYRO_YOUT)
+                gyro_z = self.read_raw_data(self.GYRO_ZOUT)
+
+                Ax = round(acc_x / 16384.0, 2)
+                Ay = round(acc_y / 16384.0, 2)
+                Az = round(acc_z / 16384.0, 2)
+                Axms = round(Ax * 9.81, 2)
+                Ayms = round(Ay * 9.81, 2)
+                Azms = round(Az * 9.81, 2)
+                Gx = round(gyro_x / 131.0, 2)
+                Gy = round(gyro_y / 131.0, 2)
+                Gz = round(gyro_z / 131.0, 2)
+
+                if self.vibration_sw420.is_active:
+                    self.vibrations += 1
+                if self.shock_ky031.is_active:
+                    current_time = self.millis()
+                    if current_time - self.last_shock_time > self.DEBOUNCE_TIME:
+                        self.shocks += 1
+                        self.last_shock_time = current_time
+
+                angle = (Ay - 1) * 180 / (-2) + 0
+                angle = int(angle)
+
+                return {
+                    'acc_x': Axms, 'acc_y': Ayms, 'acc_z': Azms,
+                    'gyro_x': Gx, 'gyro_y': Gy, 'gyro_z': Gz,
+                    'angle': angle,
+                    'vibrations': self.vibrations,
+                    'shocks': self.shocks,
+                    'g_force_x': Ax,
+                    'g_force_y': Ay,
+                    'g_force': self.calculate_g_force(Ax, Ay, Az)
+                }
+            except OSError as e:
+                print(f"Error reading sensors (attempt {retry_count + 1}): {e}")
+                retry_count += 1
+                time.sleep(self.RETRY_DELAY)
+                if retry_count == self.MAX_RETRIES:
+                    print("Failed to read sensors after multiple attempts")
+                    return None  # or return a default value
+                self.initialize_i2c()  # Try to reinitialize the I2C bus
+
+    def read_raw_data(self, addr):
+        retry_count = 0
+        while retry_count < self.MAX_RETRIES:
+            try:
+                high = self.bus.read_byte_data(self.Device_Address, addr)
+                low = self.bus.read_byte_data(self.Device_Address, addr + 1)
+                value = ((high << 8) | low)
+                if value > 32768:
+                    value = value - 65536
+                return value
+            except OSError as e:
+                print(f"Error reading raw data (attempt {retry_count + 1}): {e}")
+                retry_count += 1
+                time.sleep(self.RETRY_DELAY)
+                if retry_count == self.MAX_RETRIES:
+                    print(f"Failed to read raw data from address {addr} after multiple attempts")
+                    return 0  # or return a default value
+                self.initialize_i2c()  # Try to reinitialize the I2C bus
 
     def process_sensor_data(self):
         while self.running:
@@ -77,18 +165,20 @@ class SensorService:
                     sensor_data = []
                     while time.time() - start_time < 30 and self.is_traveling:
                         data = self.read_sensors()
-                        sensor_data.append(data)
-                        print("Sensor data:", data)
-                        self.check_for_collision(data)
+                        if data is not None:
+                            sensor_data.append(data)
+                            print("Sensor data:", data)
+                            self.check_for_collision(data)
+                        else:
+                            print("Failed to read sensor data")
                         time.sleep(0.5)
                     
-                    if sensor_data:  # Solo procesar si hay datos
-                        average_data = self.calculate_averages(sensor_data)
-                        
+                    if sensor_data:
                         try:
+                            average_data = self.calculate_averages(sensor_data)
                             coordinates = geolocation_service.get_current_coordinates()
                             if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
-                                coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
+                                coordinates = "..."
 
                             driving_data = DrivingModel(
                                 kit_id=self.kit_id,
@@ -110,49 +200,7 @@ class SensorService:
                         except Exception as e:
                             print(f"Error processing driving data: {e}")
                 else:
-                    time.sleep(1)  # Esperar un segundo si no está viajando
-
-
-    def read_sensors(self):
-        # Leer valores del acelerómetro y giroscopio
-        acc_x = self.read_raw_data(self.ACCEL_XOUT)
-        acc_y = self.read_raw_data(self.ACCEL_YOUT)
-        acc_z = self.read_raw_data(self.ACCEL_ZOUT)
-        gyro_x = self.read_raw_data(self.GYRO_XOUT)
-        gyro_y = self.read_raw_data(self.GYRO_YOUT)
-        gyro_z = self.read_raw_data(self.GYRO_ZOUT)
-
-        Ax = round(acc_x / 16384.0, 2)
-        Ay = round(acc_y / 16384.0, 2)
-        Az = round(acc_z / 16384.0, 2)
-        Axms = round(Ax * 9.81, 2)
-        Ayms = round(Ay * 9.81, 2)
-        Azms = round(Az * 9.81, 2)
-        Gx = round(gyro_x / 131.0, 2)
-        Gy = round(gyro_y / 131.0, 2)
-        Gz = round(gyro_z / 131.0, 2)
-
-        if self.vibration_sw420.is_active:
-            self.vibrations += 1
-        if self.shock_ky031.is_active:
-            current_time = self.millis()
-            if current_time - self.last_shock_time > self.DEBOUNCE_TIME:
-                self.shocks += 1
-                self.last_shock_time = current_time
-
-        angle = (Ay - 1) * 180 / (-2) + 0
-        angle = int(angle)
-
-        return {
-            'acc_x': Axms, 'acc_y': Ayms, 'acc_z': Azms,
-            'gyro_x': Gx, 'gyro_y': Gy, 'gyro_z': Gz,
-            'angle': angle,
-            'vibrations': self.vibrations,
-            'shocks': self.shocks,
-            'g_force_x': Ax,
-            'g_force_y': Ay,
-            'g_force': self.calculate_g_force(Ax, Ay, Az)
-        }
+                    time.sleep(1)
 
     def calculate_averages(self, sensor_data):
         avg_data = {}
@@ -206,14 +254,14 @@ class SensorService:
             crash_coordinates=coordinates
         )
 
-        if self.shock_ky031.is_active and data['g_force'] > self.G_FORCE_THRESHOLD:
-            collision_detected = True
-            register_crash(crash_data)
+        # if data['g_force'] > self.G_FORCE_THRESHOLD:
+        #     collision_detected = True
+        #     register_crash(crash_data)
         # elif self.shock_ky031.is_active:
         #     collision_detected = True
         #     print('colission detected by shock sensor')
         #     register_crash(crash_data)
-        elif data['g_force'] > self.G_FORCE_THRESHOLD:
+        if data['g_force'] > self.G_FORCE_THRESHOLD:
             collision_detected = True
             register_crash(crash_data)
 
@@ -253,5 +301,5 @@ class SensorService:
     GYRO_YOUT = 0x45
     GYRO_ZOUT = 0x47
 
-# Crear una instancia de SensorService
+# Create an instance of SensorService
 sensor_service = SensorService()
