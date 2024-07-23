@@ -213,7 +213,7 @@ class SensorService:
                         data = self.read_sensors()
                         if data is not None:
                             sensor_data.append(data)
-                            print("Sensor data:", data)
+                            # print("Sensor data:", data)
                             self.check_for_collision(data)
                         else:
                             print("Failed to read sensor data")

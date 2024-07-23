@@ -65,13 +65,17 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
             detail="No travel found"
         )
     
+    # Maneja coordenadas que puedan ser None
+    start_coordinates = init_data.get("start_coordinates", "...")
+    end_coordinates = travel_model.end_coordinates if travel_model.end_coordinates else "..."
+
     travel = TravelEntityModel(
         driver_id=init_data["driver_id"],
         date_day=init_data["date"],
         start_datetime=init_data["start_hour"],
         end_datetime=travel_model.end_datetime,
-        start_coordinates=init_data["start_coordinates"],
-        end_coordinates=travel_model.end_coordinates,
+        start_coordinates=start_coordinates,
+        end_coordinates=end_coordinates,
     )
     
     # Detener el servicio de sensado
