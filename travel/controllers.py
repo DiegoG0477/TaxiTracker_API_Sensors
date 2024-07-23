@@ -21,6 +21,8 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
     
     kit_id = get_kit_id()
 
+    print("travel initialization", travel_model)
+
     # Iniciar el servicio de sensado
     sensor_service.start_travel(kit_id, travel_model.driver_id)
 
@@ -43,6 +45,7 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
 def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     # get the last initiated travel
     init_data = get_last_init_travel()
+
     if not init_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

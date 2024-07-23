@@ -11,7 +11,7 @@ import smbus
 
 class SensorService:
     G_FORCE_THRESHOLD = 3.5  # Umbral de fuerza G para detectar un choque (ajustar según sea necesario)
-    DEBOUNCE_TIME = 100
+    DEBOUNCE_TIME = 50
 
     def __init__(self):
         self.running = True
