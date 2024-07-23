@@ -85,6 +85,8 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     
     message = json.dumps(travel.model_dump_json())
     rabbitmq_service.send_message(message, "travel.register")
+
+    print("Travel finished:", message)
     
     new_travel_id = database.query_post_travel((
         travel.driver_id,
@@ -94,8 +96,8 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
         travel.start_coordinates,
         travel.end_coordinates,
     ))
-    
-    return new_travel_id
+
+    return travel
 
 def get_driver_by_id(id: str) -> Optional[dict]:
     drivers = database.query_get(
