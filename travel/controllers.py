@@ -56,7 +56,6 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
 
 
 def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
-    # get the last initiated travel
     init_data = get_last_init_travel()
 
     if not init_data:
@@ -66,26 +65,27 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
         )
     
     # Maneja coordenadas que puedan ser None
-    start_coordinates = init_data.get("start_coordinates", "...")
-    end_coordinates = travel_model.end_coordinates if travel_model.end_coordinates else "..."
+    start_coordinates = init_data.get("start_coordinates") or "..."
+    end_coordinates = travel_model.end_coordinates or "..."
 
-    travel = TravelEntityModel(
-        driver_id=init_data["driver_id"],
-        date_day=init_data["date"],
-        start_datetime=init_data["start_hour"],
-        end_datetime=travel_model.end_datetime,
-        start_coordinates=start_coordinates,
-        end_coordinates=end_coordinates,
-    )
-    
-    # Detener el servicio de sensado
+    try:
+        travel = TravelEntityModel(
+            driver_id=init_data["driver_id"],
+            date_day=init_data["date"],
+            start_datetime=init_data["start_hour"],
+            end_datetime=travel_model.end_datetime,
+            start_coordinates=start_coordinates,
+            end_coordinates=end_coordinates,
+        )
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid data")
+
     sensor_service.end_travel()
     
     message = json.dumps(travel.model_dump_json())
-    # Send the travel to the RabbitMQ
     rabbitmq_service.send_message(message, "travel.register")
     
-    # Insert the complete travel and update travels_location
     new_travel_id = database.query_post_travel((
         travel.driver_id,
         travel.date_day,
