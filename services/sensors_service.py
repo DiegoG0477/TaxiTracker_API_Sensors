@@ -1,3 +1,4 @@
+
 import threading
 import time
 from datetime import datetime
@@ -10,8 +11,8 @@ from driving.models import DrivingModel
 from driving.controllers import register_driving
 
 class SensorService:
-    G_FORCE_THRESHOLD = 2.5
-    MAX_RETRIES = 3
+    G_FORCE_THRESHOLD = 5
+    MAX_RETRIES = 8
     RETRY_DELAY = 0.1
 
     def __init__(self):
@@ -192,10 +193,13 @@ class SensorService:
 
         if self.shock_ky031.is_active and data['g_force'] > self.G_FORCE_THRESHOLD:
             collision_detected = True
+            print('collision detected by shock sensor and g-force')
             register_crash(crash_data)
         elif self.shock_ky031.is_active:
+            print('crash detected by shock sensor')
             register_crash(crash_data)
         elif data['g_force'] > self.G_FORCE_THRESHOLD:
+            print('crash detected by g-force')
             register_crash(crash_data)
 
         if collision_detected:
