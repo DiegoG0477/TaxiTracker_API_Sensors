@@ -27,7 +27,7 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
     sensor_service.start_travel(kit_id, travel_model.driver_id)
 
     # Insert the travel
-    database.query_post(
+    return database.query_post(
         """
         INSERT INTO init_travels (driver_id, date, start_hour, start_coordinates)
         VALUES (%s, %s, %s, ST_GeomFromText(%s));
@@ -40,7 +40,7 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
         ),
     )
 
-    return travel_model
+    # return travel_model
 
 def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     # get the last initiated travel
