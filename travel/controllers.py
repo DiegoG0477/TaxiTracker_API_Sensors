@@ -10,10 +10,6 @@ from travel.models import (
 )
 from services.rabbitmq_service import RabbitMQService
 from services.sensors_service import sensor_service
-import logging
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
@@ -47,11 +43,11 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
             # return travel_model
             return result
         except Exception as e:
-            logger.error(f"Error starting travel: {e}")
+            print(f"Error starting travel: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     except Exception as e:
-        logger.error(f"Error in travel_init: {str(e)}")
+        print(f"Error in travel_init: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -78,7 +74,7 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
             end_coordinates=end_coordinates,
         )
     except ValueError as e:
-        logger.error(f"Validation error: {e}")
+        print(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail="Invalid data")
 
     sensor_service.end_travel()
@@ -106,7 +102,7 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
             travel.end_coordinates,
         ))
     except Exception as e:
-        logger.error(f"Error inserting travel into database: {e}")
+        print(f"Error inserting travel into database: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
     return travel
@@ -169,7 +165,7 @@ def get_kit_id() -> str:
         else:
             raise ValueError("Unexpected result format from query_get")
     except Exception as e:
-        logger.error(f"Error getting kit ID: {str(e)}")
+        print(f"Error getting kit ID: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
