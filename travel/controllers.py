@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Optional
 from fastapi import HTTPException, status
 from database.connector import DatabaseConnector
 from travel.models import (
@@ -75,20 +75,20 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     
     return new_travel_id
 
-def get_driver_by_id(id: str) -> dict:
+def get_driver_by_id(id: str) -> Optional[dict]:
     drivers = database.query_get(
         """
         SELECT
-            drivers.id,
+            id,
+            kit_id
         FROM drivers
         WHERE id = %s
         """,
-        (id),
+        (id,),
     )
     if len(drivers) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Driver not found"
-        )
+        print("No driver found. The system will add the driver automatically.")
+        return None
     return drivers[0]
 
 def get_last_init_travel() -> dict:
