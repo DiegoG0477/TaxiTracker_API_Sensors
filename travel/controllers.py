@@ -85,9 +85,9 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
 
     message = json.dumps({
         "driver_id": travel.driver_id,
-        "date": travel.date_day,
-        "start_hour": travel.start_datetime,
-        "end_hour": travel.end_datetime,
+        "date": travel.date_day.isoformat(),
+        "start_hour": travel.start_datetime.isoformat(),
+        "end_hour": travel.end_datetime.isoformat(),
         "start_coordinates": travel.start_coordinates,
         "end_coordinates": travel.end_coordinates,
     })

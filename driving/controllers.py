@@ -39,7 +39,7 @@ def register_driving(driving_model: DrivingModel) -> str:
             (
                 driving_model.kit_id,
                 driving_model.driver_id,
-                driving_model.datetime,
+                driving_model.datetime.isoformat(),
                 driving_model.acceleration,
                 driving_model.deceleration,
                 driving_model.inclination_angle,
