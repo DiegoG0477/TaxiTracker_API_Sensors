@@ -44,6 +44,7 @@ class SensorService:
     def start(self):
         if self.thread is None:
             try:
+                print("Starting sensor service thread...")
                 self.thread = threading.Thread(target=self.process_sensor_data)
                 self.thread.start()
             except Exception as e:
@@ -57,11 +58,12 @@ class SensorService:
             self.thread = None
 
     def start_travel(self, kit_id: str, driver_id: str):
-        print("Starting travel whit kit_id:", kit_id, "and driver_id:", driver_id)
+        print(f"Starting travel with kit_id: {kit_id} and driver_id: {driver_id}")
         with self.lock:
             self.is_traveling = True
             self.kit_id = kit_id
             self.driver_id = driver_id
+
 
     def end_travel(self):
         with self.lock:
@@ -76,6 +78,7 @@ class SensorService:
                     while time.time() - start_time < 30 and self.is_traveling:
                         data = self.read_sensors()
                         sensor_data.append(data)
+                        print("Sensor data:", data)
                         self.check_for_collision(data)
                         time.sleep(0.5)
                     
