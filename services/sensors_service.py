@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import threading
 import time
 from services.geolocation_service import geolocation_service
