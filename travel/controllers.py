@@ -3,7 +3,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from database.connector import DatabaseConnector
 from travel.models import (
-    TravelInitRequestModel, 
+    TravelInitControllerModel, 
     TravelFinishRequestModel,
     TravelEntityModel
 )
@@ -13,7 +13,7 @@ from services.sensors_service import sensor_service
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
 
-def travel_init(travel_model: TravelInitRequestModel) -> str:
+def travel_init(travel_model: TravelInitControllerModel) -> str:
     # Check if the driver exists
     driver = get_driver_by_id(travel_model.driver_id)
     if not driver:

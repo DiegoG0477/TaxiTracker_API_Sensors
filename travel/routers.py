@@ -7,6 +7,7 @@ from travel.models import (
     TravelInitRequestModel,
     TravelFinishRequestModel,
     TravelInitResponseModel,
+    TravelInitControllerModel,
     TravelEntityModel
 )
 from services.geolocation_service import geolocation_service
@@ -14,13 +15,13 @@ from services.geolocation_service import geolocation_service
 router = APIRouter()
 
 @router.post("/travels/init", response_model=TravelInitResponseModel)
-def travel_init_api(driver_id: str):
+def travel_init_api(request: TravelInitRequestModel):
     """
     This travel init API allow you to start a travel.
     """
     coordinates = geolocation_service.get_current_coordinates()
-    travel_details = TravelInitRequestModel(
-        driver_id=driver_id,
+    travel_details = TravelInitControllerModel(
+        driver_id=request.driver_id,
         date_day=datetime.now().date(),
         start_datetime=datetime.now().isoformat(),
         start_coordinates=coordinates

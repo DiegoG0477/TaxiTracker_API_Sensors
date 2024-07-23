@@ -1,6 +1,10 @@
 from pydantic import BaseModel
 from datetime import datetime
+
 class TravelInitRequestModel(BaseModel):
+    driver_id: str
+
+class TravelInitControllerModel(BaseModel):
     driver_id: str
     date_day: datetime
     start_datetime: str
