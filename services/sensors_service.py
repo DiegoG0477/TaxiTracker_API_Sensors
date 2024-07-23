@@ -11,7 +11,7 @@ import smbus
 
 class SensorService:
     G_FORCE_THRESHOLD = 3.5  # Umbral de fuerza G para detectar un choque (ajustar según sea necesario)
-    DEBOUNCE_TIME = 50
+    DEBOUNCE_TIME = 100
 
     def __init__(self):
         self.running = True
@@ -35,10 +35,17 @@ class SensorService:
         self.vibrations = 0
         self.shocks = 0
 
+    # def start(self):
+    #     if self.thread is None:
+    #         self.thread = threading.Thread(target=self.process_sensor_data)
+    #         self.thread.start()
     def start(self):
         if self.thread is None:
-            self.thread = threading.Thread(target=self.process_sensor_data)
-            self.thread.start()
+            try:
+                self.thread = threading.Thread(target=self.process_sensor_data)
+                self.thread.start()
+            except Exception as e:
+                print(f"Error starting sensor service: {e}")
 
     def stop(self):
         with self.lock:
