@@ -55,6 +55,7 @@ class SensorService:
             self.thread = None
 
     def start_travel(self, kit_id: str, driver_id: str):
+        print("Starting travel whit kit_id:", kit_id, "and driver_id:", driver_id)
         with self.lock:
             self.is_traveling = True
             self.kit_id = kit_id
