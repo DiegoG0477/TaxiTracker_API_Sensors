@@ -7,7 +7,7 @@ import smbus
 import logging
 from driving.models import DrivingModel
 from driving.controllers import register_driving
-from services.geolocation_service import geolocation_service
+from TaxiTracker_API_Sensors.services.geolocation_service_backup import geolocation_service
 from crash.models import CrashRequestModel
 from crash.controllers import register_crash
 

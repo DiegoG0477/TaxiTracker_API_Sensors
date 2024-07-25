@@ -11,8 +11,11 @@ from gpiozero import InputDevice
 import smbus
 from database.connector import DatabaseConnector
 from services.rabbitmq_service import RabbitMQService
+from driving.models import DrivingRequestModel
+from crash.models import CrashRequestModel
 from geolocation.controllers import get_kit_id
 from driving.controllers import register_driving_gpio
+from crash.controllers import register_crash_gpio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -275,18 +278,19 @@ class GpioService:
         return avg_data
 
     async def send_driving_data(self, data):
-        payload = {
-            "datetime": datetime.now().isoformat(),
-            "acceleration": data['acceleration'],
-            "deceleration": data['deceleration'],
-            "vibrations": data['vibrations'],
-            "inclination_angle": data['inclination_angle'],
-            "angular_velocity": data['angular_velocity'],
-            "g_force_x": data['g_force_x'],
-            "g_force_y": data['g_force_y']
-        }
+        driving_model = DrivingRequestModel(
+            datetime=datetime.now(),
+            acceleration=data['acceleration'],
+            deceleration=data['deceleration'],
+            vibrations=data['vibrations'],
+            travel_coordinates=data['travel_coordinates'],
+            inclination_angle=data['inclination_angle'],
+            angular_velocity=data['angular_velocity'],
+            g_force_x=data['g_force_x'],
+            g_force_y=data['g_force_y']
+        )
         try:
-            await register_driving_gpio(payload)
+            await register_driving_gpio(driving_model)
         except Exception as e:
             logger.error(f"Error sending driving data: {e}")
 
@@ -303,17 +307,15 @@ class GpioService:
             self.send_crash_alert(data)
 
     def send_crash_alert(self, data):
-        payload = {
-            "datetime": datetime.now().isoformat(),
-            "impact_force": data['g_force'],
-        }
+        crash_model = CrashRequestModel(
+            datetime=datetime.now(),
+            impact_force=data['g_force']
+        )
 
         try:
-            response = requests.post(self.CRASH_URL, json=payload)
-            response.raise_for_status()
-            logger.info("Crash data sent successfully")
-        except requests.RequestException as e:
-            logger.error(f"Error sending crash data: {e}")
+            asyncio.create_task(register_crash_gpio(crash_model))
+        except Exception as e:
+            logger.error(f"Error sending crash alert: {e}")
 
     def MPU_Init(self):
         logger.info("Initializing MPU6050...")

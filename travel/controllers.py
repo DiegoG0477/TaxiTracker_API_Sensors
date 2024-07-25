@@ -11,6 +11,7 @@ from travel.models import (
 )
 from services.rabbitmq_service import RabbitMQService
 from utils.travel_state import travel_state
+from utils.current_driver import current_driver
 
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
@@ -31,6 +32,8 @@ async def travel_init(travel_model: TravelInitControllerModel) -> str:
         await ensure_driver_exists(driver_id)
 
         travel_state.start_travel()
+
+        current_driver.define_driver(driver_id)
 
         try:
             result = await database.query_post(
@@ -85,6 +88,8 @@ async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     # await sensor_service.end_travel()
 
     travel_state.end_travel()
+
+    current_driver.end_driver_travel()
 
     message = json.dumps({
         "driver_id": travel.driver_id,

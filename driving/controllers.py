@@ -82,6 +82,7 @@ async def register_driving(driving_model: DrivingModel) -> str:
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
+
 async def register_driving_gpio(driving_model: DrivingRequestModel) -> str:
     from services.gpio_service import gpio_service
     try:
