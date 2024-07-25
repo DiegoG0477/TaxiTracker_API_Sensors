@@ -43,7 +43,7 @@ def travel_finish_api():
     """
     This travel finish API allow you to finish a travel.
     """
-    coordinates = geolocation_service.get_current_coordinates()
+    coordinates = geolocation_service.get_current_coordinates_async()
     if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
         coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
 

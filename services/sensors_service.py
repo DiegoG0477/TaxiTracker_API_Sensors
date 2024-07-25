@@ -108,7 +108,7 @@ class SensorService:
                     if sensor_data:
                         try:
                             average_data = self.calculate_averages(sensor_data)
-                            coordinates = geolocation_service.get_current_coordinates()
+                            coordinates = geolocation_service.get_current_coordinates_async()
                             if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
                                 coordinates = "..."
 
@@ -222,7 +222,7 @@ class SensorService:
                     if sensor_data:
                         try:
                             average_data = self.calculate_averages(sensor_data)
-                            coordinates = geolocation_service.get_current_coordinates()
+                            coordinates = geolocation_service.get_current_coordinates_async()
                             if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
                                 coordinates = "..."
 
@@ -288,7 +288,7 @@ class SensorService:
             "g_force": data['g_force']
         }
 
-        coordinates = geolocation_service.get_current_coordinates()
+        coordinates = geolocation_service.get_current_coordinates_async()
         if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
             coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
 
