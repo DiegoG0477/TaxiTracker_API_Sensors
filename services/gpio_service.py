@@ -163,7 +163,7 @@ class GpioService:
     async def process_sensor_data(self):
         avg_data = self.calculate_averages()
         if avg_data:
-            self.send_driving_data(avg_data)
+            await self.send_driving_data(avg_data)
         self.data_buffer = []  # Clear the buffer after sending data
 
     def read_sensors(self):
@@ -274,7 +274,7 @@ class GpioService:
 
         return avg_data
 
-    def send_driving_data(self, data):
+    async def send_driving_data(self, data):
         payload = {
             "datetime": datetime.now().isoformat(),
             "acceleration": data['acceleration'],
@@ -286,9 +286,10 @@ class GpioService:
             "g_force_y": data['g_force_y']
         }
         try:
-            register_driving_gpio(payload)  
+            await register_driving_gpio(payload)
         except Exception as e:
             logger.error(f"Error sending driving data: {e}")
+
 
     def millis(self):
         return int(round(time.time() * 1000))
