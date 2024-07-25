@@ -8,6 +8,8 @@ import logging
 from driving.models import DrivingModel
 from driving.controllers import register_driving
 from services.geolocation_service import geolocation_service
+from crash.models import CrashRequestModel
+from crash.controllers import register_crash
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -239,9 +241,40 @@ class SensorService:
         return (x ** 2 + y ** 2 + z ** 2) ** 0.5
 
     async def check_for_collision(self, data):
-        if data['vibrations'] > self.G_FORCE_THRESHOLD:
-            logger.info("Collision detected!")
-            # Aquí puedes manejar la detección de colisiones si es necesario
+        collision_detected = False
+        relevant_data = {
+            "shocks": data['shocks'],
+            "g_force_x": data['g_force_x'],
+            "g_force_y": data['g_force_y'],
+            "g_force": data['g_force']
+        }
+
+        coordinates = await geolocation_service.get_current_coordinates_async()
+        if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
+            coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
+
+        crash_data = CrashRequestModel(
+            kit_id=self.kit_id,
+            driver_id=self.driver_id,
+            datetime=datetime.now(),
+            impact_force=data['g_force'],
+            crash_coordinates=coordinates
+        )
+
+        # if data['g_force'] > self.G_FORCE_THRESHOLD:
+        #     collision_detected = True
+        #     register_crash(crash_data)
+        # elif self.shock_ky031.is_active:
+        #     collision_detected = True
+        #     print('colission detected by shock sensor')
+        #     register_crash(crash_data)
+        if data['g_force'] > self.G_FORCE_THRESHOLD:
+            collision_detected = True
+            await register_crash(crash_data)
+
+        if collision_detected:
+            print("Collision detected:", relevant_data)
+
 
     async def check_sensor_status(self):
         while self.running:
