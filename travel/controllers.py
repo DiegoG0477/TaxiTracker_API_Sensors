@@ -70,7 +70,6 @@ async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     
     # Maneja coordenadas que puedan ser None
     start_coordinates = init_data.get("start_coordinates") or "..."
-    end_coordinates = travel_model.end_coordinates or "..."
 
     try:
         travel = TravelEntityModel(
@@ -79,7 +78,7 @@ async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
             start_datetime=init_data["start_hour"],
             end_datetime=travel_model.end_datetime,
             start_coordinates=start_coordinates,
-            end_coordinates=end_coordinates,
+            end_coordinates=travel_model.end_coordinates,
         )
     except ValueError as e:
         print(f"Validation error: {e}")

@@ -94,6 +94,8 @@ async def register_driving_gpio(driving_model: DrivingRequestModel) -> str:
 
         if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
             coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
+        else:
+            coordinates = f"POINT({coordinates['longitude']} {coordinates['latitude']})"
 
         kit_id = await get_kit_id()
         driver_id = current_driver.get_driver_id()

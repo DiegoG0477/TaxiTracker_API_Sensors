@@ -49,6 +49,12 @@ async def register_crash_gpio(crash_model: CrashRequestModel) -> str:
     from services.gpio_service import gpio_service
     try:
         coordinates = await gpio_service.get_current_coordinates_async()
+
+        if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
+            coordinates = "..."
+        else:
+            coordinates = f"POINT({coordinates['longitude']} {coordinates['latitude']} {coordinates['altitude']})"
+
         kit_id = await get_kit_id()
 
         # Check if the driver exists

@@ -25,6 +25,12 @@ async def travel_init_api(request: TravelInitRequestModel):
     """
     try:
         coordinates = await gpio_service.get_current_coordinates_async()
+
+        if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
+            coordinates = "..."
+        else:
+            coordinates = f"POINT({coordinates['longitude']} {coordinates['latitude']})"
+
         travel_details = TravelInitControllerModel(
             driver_id=request.driver_id,
             date_day=datetime.now().date(),
@@ -46,6 +52,8 @@ async def asynctravel_finish_api():
     coordinates = await gpio_service.get_current_coordinates_async()
     if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
         coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
+    else:
+        coordinates = f"POINT({coordinates['longitude']} {coordinates['latitude']})"
 
     travel_details = TravelFinishRequestModel(
         end_datetime=datetime.now().isoformat(),

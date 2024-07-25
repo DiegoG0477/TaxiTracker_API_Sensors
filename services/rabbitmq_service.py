@@ -41,6 +41,8 @@ class RabbitMQService:
             routing_key=self.routing_key
         )
 
+        print(f"Message sent to {self.exchange_name} exchange with routing key {self.routing_key}")
+
     async def close_connection(self):
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
