@@ -1,5 +1,6 @@
 import json
 from typing import Any, Optional
+from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 from database.connector import DatabaseConnector
@@ -16,13 +17,16 @@ rabbitmq_service = RabbitMQService()
 
 async def travel_init(travel_model: TravelInitControllerModel) -> str:
     try:
-        kit_id = get_kit_id()
+        kit_id = await get_kit_id()
         driver_id = travel_model.driver_id
         if not kit_id or not driver_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No kit or driver found"
             )
+        
+        #metodo para agregar al driver si no existe
+        await ensure_driver_exists(driver_id)
 
         try:
             result = database.query_post(
@@ -52,7 +56,7 @@ async def travel_init(travel_model: TravelInitControllerModel) -> str:
 
 
 async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
-    init_data = get_last_init_travel()
+    init_data = await get_last_init_travel()
 
     if not init_data:
         raise HTTPException(
@@ -108,7 +112,7 @@ async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     return travel
 
 
-def get_driver_by_id(id: str) -> Optional[dict]:
+async def get_driver_by_id(id: str) -> Optional[dict]:
     drivers = database.query_get(
         """
         SELECT
@@ -124,7 +128,7 @@ def get_driver_by_id(id: str) -> Optional[dict]:
         return None
     return drivers[0]
 
-def get_last_init_travel() -> dict:
+async def get_last_init_travel() -> dict:
     travel = database.query_get(
         """
         SELECT
@@ -144,7 +148,7 @@ def get_last_init_travel() -> dict:
     print("Travel found:", travel)
     return travel[0]
 
-def get_kit_id() -> str:
+async def get_kit_id() -> str:
     try:
         kit = database.query_get(
             """
@@ -168,15 +172,24 @@ def get_kit_id() -> str:
         print(f"Error getting kit ID: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-def insert_driver(id: str) -> dict:
-
-    kit_id = get_kit_id()
-
-    return database.query_post(
-        """
-        INSERT INTO drivers (id, kit_id)
-        VALUES (%s, %s)
-        """,
-        (id, kit_id),
-    )
+async def ensure_driver_exists(driver_id: str):
+    try:
+        print("known driver")
+        result = await database.query_post(
+            """
+            SELECT 1 FROM taxitracker.drivers WHERE id = %s
+            """,
+            (driver_id,)
+        )
+        if not result:
+            print("driver doesn't exists, it will be registered automatically")            
+            await database.query_post(
+                """
+                INSERT INTO taxitracker.drivers (id, column1, column2, ...)
+                VALUES (%s, value1, value2, ...)
+                """,
+                (driver_id,)
+            )
+    except SQLAlchemyError as e:
+        print(f"Error ensuring driver existence: {e}")
+        raise HTTPException(status_code=500, detail="Error ensuring driver existence")

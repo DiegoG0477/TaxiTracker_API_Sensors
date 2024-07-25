@@ -75,14 +75,14 @@ class SensorService:
             self.thread.join()
             self.thread = None
 
-    def start_travel(self, kit_id, driver_id):
+    async def start_travel(self, kit_id, driver_id):
         with self.lock:
             self.kit_id = kit_id
             self.driver_id = driver_id
             self.is_traveling = True
         logger.info(f"Starting travel for kit_id: {kit_id}, driver_id: {driver_id}")
 
-    def end_travel(self):
+    async def end_travel(self):
         with self.lock:
             self.is_traveling = False
             self.kit_id = None
@@ -108,7 +108,7 @@ class SensorService:
                     if sensor_data:
                         try:
                             average_data = self.calculate_averages(sensor_data)
-                            coordinates = geolocation_service.get_current_coordinates_async()
+                            coordinates = geolocation_service.get_current_coordinates()
                             if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
                                 coordinates = "..."
 
