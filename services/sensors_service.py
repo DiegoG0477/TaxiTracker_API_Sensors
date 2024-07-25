@@ -222,7 +222,7 @@ class SensorService:
                     if sensor_data:
                         try:
                             average_data = self.calculate_averages(sensor_data)
-                            coordinates = geolocation_service.get_current_coordinates_async()
+                            coordinates = geolocation_service.get_current_coordinates()
                             if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
                                 coordinates = "..."
 
