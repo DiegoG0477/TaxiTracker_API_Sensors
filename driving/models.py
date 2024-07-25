@@ -20,7 +20,6 @@ class DrivingRequestModel(BaseModel):
     acceleration: float
     deceleration: float
     vibrations: int
-    travel_coordinates: str
     inclination_angle: float
     angular_velocity: float
     g_force_x: float

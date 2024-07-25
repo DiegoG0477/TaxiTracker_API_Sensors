@@ -283,7 +283,6 @@ class GpioService:
             acceleration=data['acceleration'],
             deceleration=data['deceleration'],
             vibrations=data['vibrations'],
-            travel_coordinates=data['travel_coordinates'],
             inclination_angle=data['inclination_angle'],
             angular_velocity=data['angular_velocity'],
             g_force_x=data['g_force_x'],
