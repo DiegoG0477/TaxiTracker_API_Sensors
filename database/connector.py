@@ -35,49 +35,54 @@ class DatabaseConnector:
 
     async def query_get(self, sql, param=None):
         try:
-            async with self.get_connection() as connection:
-                async with connection.cursor(aiomysql.DictCursor) as cursor:
-                    await cursor.execute(sql, param)
-                    return await cursor.fetchall()
+            connection = await self.get_connection()
+            async with connection.cursor(aiomysql.DictCursor) as cursor:
+                await cursor.execute(sql, param)
+                result = await cursor.fetchall()
+            connection.close()
+            return result
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Database error: " + str(e),
             )
-        
+
     async def query_post(self, sql, param):
         try:
-            async with self.get_connection() as connection:
-                async with connection.cursor() as cursor:
-                    await cursor.execute(sql, param)
-                    return cursor.lastrowid
+            connection = await self.get_connection()
+            async with connection.cursor() as cursor:
+                await cursor.execute(sql, param)
+                result = cursor.lastrowid
+            connection.close()
+            return result
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Database error: " + str(e),
             )
-        
+
     async def query_post_travel(self, travel_data: Tuple[Any, ...]) -> int:
         try:
-            async with self.get_connection() as connection:
-                async with connection.cursor() as cursor:
-                    # Insertar el viaje
-                    await cursor.execute("""
-                        INSERT INTO travels (driver_id, date, start_hour, end_hour, start_coordinates, end_coordinates)
-                        VALUES (%s, %s, %s, %s, ST_GeomFromText(%s), ST_GeomFromText(%s))
-                        RETURNING id;
-                    """, travel_data)
-                    
-                    new_travel_id = await cursor.fetchone()
-                    
-                    # Actualizar travels_location
-                    await cursor.execute("""
-                        UPDATE travels_location
-                        SET travel_id = %s
-                        WHERE travel_id = 9999;
-                    """, (new_travel_id,))
-                    
-                    return new_travel_id
+            connection = await self.get_connection()
+            async with connection.cursor() as cursor:
+                # Insertar el viaje
+                await cursor.execute("""
+                    INSERT INTO travels (driver_id, date, start_hour, end_hour, start_coordinates, end_coordinates)
+                    VALUES (%s, %s, %s, %s, ST_GeomFromText(%s), ST_GeomFromText(%s))
+                    RETURNING id;
+                """, travel_data)
+                
+                new_travel_id = await cursor.fetchone()
+                
+                # Actualizar travels_location
+                await cursor.execute("""
+                    UPDATE travels_location
+                    SET travel_id = %s
+                    WHERE travel_id = 9999;
+                """, (new_travel_id,))
+                
+                connection.close()
+                return new_travel_id
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
