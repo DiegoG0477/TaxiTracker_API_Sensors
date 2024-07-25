@@ -24,7 +24,8 @@ class SensorService:
         self.running = True
         self.is_traveling = False
         self.lock = threading.Lock()
-        self.thread = None
+        # self.thread = None
+        self.task = None
         self.kit_id = None
         self.driver_id = None
 
@@ -61,20 +62,23 @@ class SensorService:
             logger.error("Failed to initialize I2C bus after multiple attempts")
 
     async def start(self):
-        if self.thread is None:
+        if not self.task:
             try:
-                logger.info("Starting sensor service thread...")
+                logger.info("Starting sensor service...")
                 self.task = asyncio.create_task(self.process_sensor_data())
-                self.thread.start()
             except Exception as e:
                 logger.error(f"Error starting sensor service: {e}")
 
     async def stop(self):
         self.running = False
-        if self.thread is not None:
-            logger.info("Stopping sensor service thread...")
-            self.thread.join()
-            self.thread = None
+        if self.task:
+            logger.info("Stopping sensor service...")
+            self.task.cancel()
+            try:
+                await self.task
+            except asyncio.CancelledError:
+                pass
+            self.task = None
 
     async def start_travel(self, kit_id, driver_id):
         with self.lock:
