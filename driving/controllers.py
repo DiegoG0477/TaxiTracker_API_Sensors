@@ -91,6 +91,10 @@ async def register_driving_gpio(driving_model: DrivingRequestModel) -> str:
         if not travel_state.get_travel_status():
             return ("alert, you must start a travel first")
         coordinates = await gpio_service.get_current_coordinates_async()
+
+        if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
+            coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
+
         kit_id = await get_kit_id()
         driver_id = current_driver.get_driver_id()
 
@@ -102,7 +106,7 @@ async def register_driving_gpio(driving_model: DrivingRequestModel) -> str:
             "acceleration": driving_model.acceleration,
             "deceleration": driving_model.deceleration,
             "vibrations": driving_model.vibrations,
-            "travel_coordinates": coordinates,
+            "travel_coordinates": str(coordinates),
             "inclination_angle": driving_model.inclination_angle,
             "angular_velocity": driving_model.angular_velocity,
             "g_force_x": driving_model.g_force_x,
