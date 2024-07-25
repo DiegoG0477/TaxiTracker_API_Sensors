@@ -12,6 +12,7 @@ class CrashModel(BaseModel):
 class CrashRequestModel(BaseModel):
     datetime: datetime
     impact_force: float
+    driver_id: str
 
 class CrashResponseModel(BaseModel):
     kit_id: str

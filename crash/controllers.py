@@ -50,7 +50,6 @@ async def register_crash_gpio(crash_model: CrashRequestModel) -> str:
     try:
         coordinates = await gpio_service.get_current_coordinates_async()
         kit_id = await get_kit_id()
-        driver_id = current_driver.get_driver_id()
 
         # Check if the driver exists
         driver = await get_driver_by_id(crash_model.driver_id)
@@ -62,7 +61,7 @@ async def register_crash_gpio(crash_model: CrashRequestModel) -> str:
         
         crash_message = json.dumps({
             "kit_id": kit_id,
-            "driver_id": driver_id,
+            "driver_id": crash_model.driver_id,
             "datetime": crash_model.datetime.isoformat(),
             "impact_force": crash_model.impact_force,
             "crash_coordinates": coordinates,
@@ -70,7 +69,7 @@ async def register_crash_gpio(crash_model: CrashRequestModel) -> str:
 
         crash_details = CrashModel(
             kit_id=kit_id,
-            driver_id=driver_id,
+            driver_id=crash_model.driver_id,
             datetime=crash_model.datetime,
             impact_force=crash_model.impact_force,
             crash_coordinates=coordinates,

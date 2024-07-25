@@ -13,9 +13,11 @@ from database.connector import DatabaseConnector
 from services.rabbitmq_service import RabbitMQService
 from driving.models import DrivingRequestModel
 from crash.models import CrashRequestModel
-from geolocation.controllers import get_kit_id
+from geolocation.controllers import get_kit_id, get_last_driver_id
 from driving.controllers import register_driving_gpio
 from crash.controllers import register_crash_gpio
+from utils.travel_state import travel_state
+from utils.current_driver import current_driver
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,8 +27,6 @@ class GpioService:
     DEBOUNCE_TIME = 100
     MAX_RETRIES = 6
     RETRY_DELAY = 0.1
-    DRIVING_URL = "http://localhost:8000/driving"
-    CRASH_URL = "http://localhost:8000/crashes"
 
     def __init__(self, gps_port="/dev/ttyAMA0", gps_baudrate=9600, gps_timeout=0.5):
         self.vibration_sw420 = InputDevice(17)
@@ -41,7 +41,6 @@ class GpioService:
         self.data_buffer = []
         self.rabbitmq_service = RabbitMQService()
         self.database = DatabaseConnector()
-        self.driver_id = None
         self.kit_id = None
         self.running = True
         self.current_coordinates = {'latitude': 0.0, 'longitude': 0.0}
@@ -137,9 +136,15 @@ class GpioService:
     async def process_gps_data(self):
         try:
             coordinates = await self.get_current_coordinates_async()
+
+            if not travel_state.get_travel_status():
+                driver_id = await get_last_driver_id()
+            else:
+                driver_id = current_driver.get_driver_id()
+
             message = json.dumps({
                 "kit_id": self.kit_id,
-                "driver_id": self.driver_id,
+                "driver_id": driver_id,
                 "datetime": datetime.now().isoformat(),
                 "coordinates": coordinates
             })
@@ -156,7 +161,7 @@ class GpioService:
                 logger.info("GPS coordinates are not valid or sensor is calibrating.")
                 await self.rabbitmq_service.send_message(json.dumps({
                     "kit_id": self.kit_id,
-                    "driver_id": self.driver_id,
+                    "driver_id": driver_id,
                     "datetime": datetime.now().isoformat(),
                     "coordinates": "..."
                 }), "geolocation.status")
@@ -300,15 +305,21 @@ class GpioService:
     def calculate_g_force(self, x, y, z):
         return (x ** 2 + y ** 2 + z ** 2) ** 0.5
 
-    def check_for_collision(self, data):
+    async def check_for_collision(self, data):
         if data['g_force'] > self.G_FORCE_THRESHOLD:
             logger.warning("Collision detected!")
-            self.send_crash_alert(data)
+            await self.send_crash_alert(data)
 
-    def send_crash_alert(self, data):
+    async def send_crash_alert(self, data):
+        if not travel_state.get_travel_status():
+            driver_id = await get_last_driver_id()
+        else:
+            driver_id = current_driver.get_driver_id()
+
         crash_model = CrashRequestModel(
             datetime=datetime.now(),
-            impact_force=data['g_force']
+            impact_force=data['g_force'],
+            driver_id=driver_id
         )
 
         try:
