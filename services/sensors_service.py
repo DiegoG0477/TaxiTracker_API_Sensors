@@ -71,7 +71,7 @@ class SensorService:
                 self.sensor_thread.start()  # Iniciar el hilo para sensores
                 # self.task = asyncio.create_task(self.check_sensor_status())
                 # self.task = asyncio.create_task(self.process_sensor_data())
-                self.task = await asyncio.get_event_loop().run_in_executor(None, self.process_sensor_data)
+                # self.task = await asyncio.get_event_loop().run_in_executor(None, self.process_sensor_data)
             except Exception as e:
                 logger.error(f"Error starting sensor service: {e}")
 
@@ -93,10 +93,11 @@ class SensorService:
             self.kit_id = kit_id
             self.driver_id = driver_id
             self.is_traveling = True
+            self.task = asyncio.create_task(self.process_sensor_data())
         print(f"Starting travel for kit_id: {kit_id}, driver_id: {driver_id}")
         print(f"Is traveling: {self.is_traveling}")  # Asegúrate de que esto es True
 
-    def end_travel(self):
+    async def end_travel(self):
         with self.lock:
             self.is_traveling = False
             self.kit_id = None
