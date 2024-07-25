@@ -32,7 +32,7 @@ async def register_driving(driving_model: DrivingModel) -> str:
 
         await rabbitmq_service.send_message(message, "driving.tracking")
 
-        database.query_post(
+        await database.query_post(
             """
             INSERT INTO acceleration (kit_id, driver_id, date, data_acceleration, data_desacceleration, inclination_angle, angular_velocity, g_force_x, g_force_y)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
@@ -50,7 +50,7 @@ async def register_driving(driving_model: DrivingModel) -> str:
             ),
         )
 
-        database.query_post(
+        await database.query_post(
             """
             INSERT INTO vibrations (kit_id, driver_id, date, data_vibration)
             VALUES (%s, %s, %s, %s);
@@ -63,7 +63,7 @@ async def register_driving(driving_model: DrivingModel) -> str:
             ),
         )
 
-        database.query_post(
+        await database.query_post(
             """
             INSERT INTO travels_location (travel_id, travel_coordinates, travel_datetime)
             VALUES (%s, ST_GeomFromText(%s), %s);
@@ -81,10 +81,10 @@ async def register_driving(driving_model: DrivingModel) -> str:
     
 
 
-def register_driving_with_retry(driving_data, max_retries=3, retry_delay=1):
+async def register_driving_with_retry(driving_data, max_retries=3, retry_delay=1):
     for attempt in range(max_retries):
         try:
-            register_driving(driving_data)
+            await register_driving(driving_data)
             logger.info(f"Driving data registered successfully: {driving_data}")
             return
         except Exception as e:

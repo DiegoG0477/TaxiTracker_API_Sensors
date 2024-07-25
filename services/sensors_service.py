@@ -9,6 +9,7 @@ from driving.controllers import register_driving
 from gpiozero import InputDevice
 import smbus
 import logging
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -63,7 +64,7 @@ class SensorService:
         if self.thread is None:
             try:
                 logger.info("Starting sensor service thread...")
-                self.thread = threading.Thread(target=self.process_sensor_data)
+                self.task = asyncio.create_task(self.process_sensor_data())
                 self.thread.start()
             except Exception as e:
                 logger.error(f"Error starting sensor service: {e}")
@@ -88,51 +89,6 @@ class SensorService:
             self.kit_id = None
             self.driver_id = None
         logger.info("Travel stopped")
-
-    def process_sensor_data(self):
-        while self.running:
-            with self.lock:
-                if self.is_traveling:
-                    start_time = time.time()
-                    sensor_data = []
-                    while time.time() - start_time < 30 and self.is_traveling:
-                        data = self.read_sensors()
-                        if data is not None:
-                            sensor_data.append(data)
-                            logger.info(f"Sensor data: {data}")
-                            self.check_for_collision(data)
-                        else:
-                            logger.warning("Failed to read sensor data")
-                        time.sleep(0.5)
-                    
-                    if sensor_data:
-                        try:
-                            average_data = self.calculate_averages(sensor_data)
-                            coordinates = geolocation_service.get_current_coordinates()
-                            if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
-                                coordinates = "..."
-
-                            driving_data = DrivingModel(
-                                kit_id=self.kit_id,
-                                driver_id=self.driver_id,
-                                travel_id=9999,
-                                datetime=datetime.now().isoformat(),
-                                acceleration=average_data['avg_acceleration'],
-                                deceleration=average_data['avg_deceleration'],
-                                vibrations=average_data['vibrations'],
-                                travel_coordinates=coordinates,
-                                inclination_angle=average_data['avg_inclination_angle'],
-                                angular_velocity=average_data['avg_angular_velocity'],
-                                g_force_x=average_data['avg_g_force_x'],
-                                g_force_y=average_data['avg_g_force_y']
-                            )
-                            
-                            register_driving(driving_data)
-                            logger.info(f"Driving data: {driving_data}")
-                        except Exception as e:
-                            logger.error(f"Error processing driving data: {e}")
-                else:
-                    time.sleep(1)
 
     def read_sensors(self):
         retry_count = 0
@@ -184,6 +140,7 @@ class SensorService:
                     logger.error("Failed to read sensors after multiple attempts")
                     return None
                 self.initialize_i2c()
+    
     def read_raw_data(self, addr):
         retry_count = 0
         while retry_count < self.MAX_RETRIES:
@@ -203,7 +160,7 @@ class SensorService:
                     return 0  # or return a default value
                 self.initialize_i2c()  # Try to reinitialize the I2C bus
 
-    def process_sensor_data(self):
+    async def process_sensor_data(self):
         while self.running:
             with self.lock:
                 if self.is_traveling:
@@ -214,7 +171,7 @@ class SensorService:
                         if data is not None:
                             sensor_data.append(data)
                             # print("Sensor data:", data)
-                            self.check_for_collision(data)
+                            await self.check_for_collision(data)
                         else:
                             print("Failed to read sensor data")
                         time.sleep(0.5)
@@ -222,7 +179,7 @@ class SensorService:
                     if sensor_data:
                         try:
                             average_data = self.calculate_averages(sensor_data)
-                            coordinates = geolocation_service.get_current_coordinates()
+                            coordinates = await geolocation_service.get_current_coordinates_async()
                             if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
                                 coordinates = "..."
 
@@ -241,7 +198,7 @@ class SensorService:
                                 g_force_y=average_data['avg_g_force_y']
                             )
                             
-                            register_driving(driving_data)
+                            await register_driving(driving_data)
                             print("Driving data:", driving_data)
                         except Exception as e:
                             print(f"Error processing driving data: {e}")
@@ -279,7 +236,7 @@ class SensorService:
         # Calcula la fuerza G basada en las aceleraciones
         return (Ax**2 + Ay**2 + Az**2)**0.5
 
-    def check_for_collision(self, data):
+    async def check_for_collision(self, data):
         collision_detected = False
         relevant_data = {
             "shocks": data['shocks'],
@@ -288,7 +245,7 @@ class SensorService:
             "g_force": data['g_force']
         }
 
-        coordinates = geolocation_service.get_current_coordinates()
+        coordinates = await geolocation_service.get_current_coordinates_async()
         if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
             coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
 
@@ -309,7 +266,7 @@ class SensorService:
         #     register_crash(crash_data)
         if data['g_force'] > self.G_FORCE_THRESHOLD:
             collision_detected = True
-            register_crash(crash_data)
+            await register_crash(crash_data)
 
         if collision_detected:
             print("Collision detected:", relevant_data)

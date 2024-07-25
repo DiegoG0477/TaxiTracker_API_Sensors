@@ -9,19 +9,19 @@ rabbitmq_service = RabbitMQService()
 
 DRIVER_NOT_FOUND = "Driver not found"
 
-def register_crash(crash_model: CrashRequestModel) -> str:
+async def register_crash(crash_model: CrashRequestModel) -> str:
     # Check if the driver exists
-    driver = get_driver_by_id(crash_model.driver_id)
+    driver = await get_driver_by_id(crash_model.driver_id)
     if not driver:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=DRIVER_NOT_FOUND
         )
     
-    rabbitmq_service.send_message(json.dumps(crash_model.model_dump_json()), "crash.detected")
+    await rabbitmq_service.send_message(json.dumps(crash_model.model_dump_json()), "crash.detected")
 
     # Insert the crash
-    return database.query_post(
+    return await database.query_post(
         """
         INSERT INTO crashes (kit_id, driver_id, crash_date, impact_g_force, crash_coordinates)
         VALUES (%s, %s, %s, %s, ST_GeomFromText(%s));
@@ -36,7 +36,7 @@ def register_crash(crash_model: CrashRequestModel) -> str:
     )
 
 
-def get_driver_by_id(id: str) -> dict:
+async def get_driver_by_id(id: str) -> dict:
     drivers = database.query_get(
         """
         SELECT
