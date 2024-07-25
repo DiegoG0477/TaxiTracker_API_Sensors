@@ -25,6 +25,8 @@ async def travel_init(travel_model: TravelInitControllerModel) -> str:
                 detail="No kit or driver found"
             )
         
+        await sensor_service.start_travel(kit_id, driver_id)
+        
         # Método para agregar al driver si no existe
         await ensure_driver_exists(driver_id)
 
@@ -42,9 +44,7 @@ async def travel_init(travel_model: TravelInitControllerModel) -> str:
                 ),
             )
 
-            await sensor_service.start_travel(kit_id, driver_id)
-
-            return {"result": result}  # Cambié el retorno para ser un diccionario
+            return result
         except Exception as e:
             print(f"Error starting travel: {e}")
             raise HTTPException(status_code=500, detail=str(e))
