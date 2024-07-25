@@ -3,9 +3,9 @@ from database.connector import DatabaseConnector
 
 database = DatabaseConnector()
 
-def get_last_driver_id() -> str:
+async def get_last_driver_id() -> str:
     try:
-        driver = database.query_get(
+        driver = await database.query_get(
             """
             SELECT
             driver_id
@@ -30,9 +30,9 @@ def get_last_driver_id() -> str:
     except Exception as e:
         return "Error occurred: " + str(e)
 
-def get_kit_id() -> str:
+async def get_kit_id() -> str:
     try:
-        kit = database.query_get(
+        kit = await database.query_get(
             """
             SELECT
             kit_id

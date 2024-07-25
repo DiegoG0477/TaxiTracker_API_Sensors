@@ -21,14 +21,14 @@ class GeolocationService:
         self.ser = serial.Serial(port, baudrate=baudrate, timeout=timeout)
         self.coordinates_lock = asyncio.Lock()
 
-    def start(self):
+    async def start(self):
         try:
             self.thread = threading.Thread(target=self.read_gps_data)
             self.thread.start()
             self.thread_save_send = threading.Thread(target=self.send_coordinates_periodically)
             self.thread_save_send.start()
-            self.kit_id = get_kit_id()
-            self.driver_id = get_last_driver_id()
+            self.kit_id = await get_kit_id()
+            self.driver_id = await get_last_driver_id()
         except Exception as e:
             print(f"Error starting geolocation service: {e}")
 
