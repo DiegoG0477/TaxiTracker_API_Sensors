@@ -39,11 +39,11 @@ async def travel_init_api(request: TravelInitRequestModel):
 
 
 @router.post("/travels/finish", response_model=TravelEntityModel)
-def travel_finish_api():
+async def asynctravel_finish_api():
     """
     This travel finish API allow you to finish a travel.
     """
-    coordinates = geolocation_service.get_current_coordinates_async()
+    coordinates = await geolocation_service.get_current_coordinates_async()
     if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
         coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
 
@@ -52,5 +52,5 @@ def travel_finish_api():
         end_coordinates=coordinates
     )
 
-    travel = travel_finish(travel_details)
+    travel = await travel_finish(travel_details)
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(travel))

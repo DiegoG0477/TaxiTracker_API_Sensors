@@ -14,7 +14,7 @@ from services.sensors_service import sensor_service
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
 
-def travel_init(travel_model: TravelInitControllerModel) -> str:
+async def travel_init(travel_model: TravelInitControllerModel) -> str:
     try:
         kit_id = get_kit_id()
         driver_id = travel_model.driver_id
@@ -38,7 +38,7 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
                 ),
             )
 
-            sensor_service.start_travel(kit_id, driver_id)
+            await sensor_service.start_travel(kit_id, driver_id)
 
             # return travel_model
             return result
@@ -51,7 +51,7 @@ def travel_init(travel_model: TravelInitControllerModel) -> str:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
+async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     init_data = get_last_init_travel()
 
     if not init_data:
@@ -77,7 +77,7 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
         print(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail="Invalid data")
 
-    sensor_service.end_travel()
+    await sensor_service.end_travel()
 
     message = json.dumps({
         "driver_id": travel.driver_id,
@@ -93,7 +93,7 @@ def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     print("Travel finished:", message)
     
     try:
-        new_travel_id = database.query_post_travel((
+        database.query_post_travel((
             travel.driver_id,
             travel.date_day,
             travel.start_datetime,

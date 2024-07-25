@@ -288,7 +288,7 @@ class SensorService:
             "g_force": data['g_force']
         }
 
-        coordinates = geolocation_service.get_current_coordinates_async()
+        coordinates = geolocation_service.get_current_coordinates()
         if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
             coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
 

@@ -99,6 +99,9 @@ class GeolocationService:
                 return self.current_coordinates
             else:
                 return "Coordinates not valid or sensor calibrating"
+    
+    def get_current_coordinates(self):
+        return asyncio.run(self.get_current_coordinates_async())
 
 # Inicializar el servicio de geolocalización
 geolocation_service = GeolocationService()
