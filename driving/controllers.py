@@ -6,7 +6,6 @@ import time
 from services.rabbitmq_service import RabbitMQService
 from utils.travel_state import travel_state
 from utils.current_driver import current_driver
-from services.gpio_service import gpio_service
 from travel.controllers import get_kit_id
 import logging
 
@@ -84,6 +83,7 @@ async def register_driving(driving_model: DrivingModel) -> str:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 async def register_driving_gpio(driving_model: DrivingRequestModel) -> str:
+    from services.gpio_service import gpio_service
     try:
         print('sending driving data to rabbitmq')
 
