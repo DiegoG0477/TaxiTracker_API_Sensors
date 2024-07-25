@@ -22,7 +22,7 @@ async def driving_register_api(request: DrivingRequestModel):
     """
 
     if not travel_state.get_travel_status():
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"error": "You must start a travel first"})
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"alert": "You must start a travel first"})
 
     try:
         coordinates = await geolocation_service.get_current_coordinates_async()
