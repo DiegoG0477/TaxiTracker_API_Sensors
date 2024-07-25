@@ -5,6 +5,8 @@ from datetime import datetime
 from gpiozero import InputDevice
 import smbus
 import logging
+from driving.models import DrivingModel
+from driving.controllers import register_driving
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
