@@ -89,7 +89,7 @@ class GpioService:
         while self.running:
             sensor_data = self.read_sensors()
             if sensor_data:
-                logger.info(f"Sensor data: {sensor_data}")
+                # logger.info(f"Sensor data: {sensor_data}")
                 self.check_for_collision(sensor_data)
                 self.data_buffer.append(sensor_data)
             time.sleep(1)
@@ -239,6 +239,8 @@ class GpioService:
     def calculate_averages(self):
         if not self.data_buffer:
             return None
+
+        print(self.data_buffer)
 
         avg_data = {
             "acceleration": mean([d['acc_x'] for d in self.data_buffer if d['acc_x'] > 0]),
