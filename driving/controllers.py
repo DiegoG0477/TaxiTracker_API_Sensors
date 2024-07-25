@@ -101,7 +101,7 @@ async def register_driving_gpio(driving_model: DrivingRequestModel) -> str:
         message = json.dumps({
             "kit_id": kit_id,
             "driver_id": driver_id,
-            "travel_id": coordinates,
+            "travel_id": 9999,
             "datetime": driving_model.datetime.isoformat(),
             "acceleration": driving_model.acceleration,
             "deceleration": driving_model.deceleration,
@@ -116,12 +116,12 @@ async def register_driving_gpio(driving_model: DrivingRequestModel) -> str:
         driving_details = DrivingModel(
             kit_id=kit_id,
             driver_id=driver_id,
-            travel_id=coordinates,
+            travel_id=9999,
             datetime=driving_model.datetime,
             acceleration=driving_model.acceleration,
             deceleration=driving_model.deceleration,
             vibrations=driving_model.vibrations,
-            travel_coordinates=coordinates,
+            travel_coordinates=str(coordinates),
             inclination_angle=driving_model.inclination_angle,
             angular_velocity=driving_model.angular_velocity,
             g_force_x=driving_model.g_force_x,
