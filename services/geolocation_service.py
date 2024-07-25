@@ -32,7 +32,7 @@ class GeolocationService:
         except Exception as e:
             print(f"Error starting geolocation service: {e}")
 
-    def stop(self):
+    async def stop(self):
         self.running = False
         self.thread.join()
         self.thread_save_send.join()

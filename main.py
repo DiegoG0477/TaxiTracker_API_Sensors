@@ -8,12 +8,12 @@ from services.sensors_service import sensor_service
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Código que se ejecuta antes de que la aplicación inicie
-    geolocation_service.start()
-    sensor_service.start()
+    await geolocation_service.start()
+    await sensor_service.start()
     yield
     # Código que se ejecuta cuando la aplicación se está cerrando
-    geolocation_service.stop()
-    sensor_service.stop()
+    await geolocation_service.stop()
+    await sensor_service.stop()
 
 # Set API info
 app = FastAPI(

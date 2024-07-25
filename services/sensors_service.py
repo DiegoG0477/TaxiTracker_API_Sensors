@@ -59,7 +59,7 @@ class SensorService:
         if retry_count == self.MAX_RETRIES:
             logger.error("Failed to initialize I2C bus after multiple attempts")
 
-    def start(self):
+    async def start(self):
         if self.thread is None:
             try:
                 logger.info("Starting sensor service thread...")
@@ -68,7 +68,7 @@ class SensorService:
             except Exception as e:
                 logger.error(f"Error starting sensor service: {e}")
 
-    def stop(self):
+    async def stop(self):
         self.running = False
         if self.thread is not None:
             logger.info("Stopping sensor service thread...")
