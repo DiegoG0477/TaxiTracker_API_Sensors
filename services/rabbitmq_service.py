@@ -12,6 +12,7 @@ class RabbitMQService:
         self.username = os.getenv('RABBITMQ_USERNAME')
         self.password = os.getenv('RABBITMQ_PASSWORD')
         self.exchange = os.getenv('RABBITMQ_EXCHANGE')
+        self.routing_key = os.getenv('RABBITMQ_ROUTING_KEY')
         self.connection = None
         self.channel = None
 
@@ -32,7 +33,7 @@ class RabbitMQService:
         }
         await self.channel.default_exchange.publish(
             aio_pika.Message(body=json.dumps(message).encode()),
-            routing_key=''
+            routing_key=self.routing_key
         )
 
     async def close_connection(self):
