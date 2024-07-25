@@ -11,3 +11,4 @@ smbus==1.1.post2
 lgpio==0.2.2.0
 pigpio==1.78
 RPi.GPIO==0.7.1
+sqlalchemy==2.0.31
