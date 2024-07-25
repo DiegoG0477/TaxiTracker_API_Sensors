@@ -47,7 +47,7 @@ class GeolocationService:
                     newmsg = pynmea2.parse(newdata)
                     if isinstance(newmsg, pynmea2.RMC):
                         if newmsg.status == 'A':
-                            asyncio.run(self.update_coordinates({'latitude': newmsg.latitude, 'longitude': newmsg.longitude}))
+                            self.update_coordinates({'latitude': newmsg.latitude, 'longitude': newmsg.longitude})
                             self.coordinates_valid = True
                         else:
                             self.coordinates_valid = False
@@ -56,11 +56,11 @@ class GeolocationService:
                 print(f"Error reading GPS data: {e}")
                 self.coordinates_valid = False
 
-    async def update_coordinates(self, new_coordinates):
-        async with self.coordinates_lock:
+    def update_coordinates(self, new_coordinates):
+        with self.coordinates_lock:
             self.current_coordinates = new_coordinates
 
-    async def send_coordinates_periodically(self):
+    def send_coordinates_periodically(self):
         db_conn = self.database.get_connection()
         cursor = db_conn.cursor()
         while self.running:
@@ -75,7 +75,7 @@ class GeolocationService:
 
                 if self.coordinates_valid:
                     point = f"POINT({coordinates['latitude']} {coordinates['longitude']})"
-                    await cursor.execute(
+                    cursor.execute(
                         "INSERT INTO geolocation (coordinates, geo_time) VALUES (ST_GeomFromText(%s), %s)",
                         (point, datetime.now())
                     )
@@ -101,7 +101,7 @@ class GeolocationService:
                 return "Coordinates not valid or sensor calibrating"
     
     def get_current_coordinates(self):
-        return asyncio.run(self.get_current_coordinates_async())
+        asyncio.run(self.get_current_coordinates_async())
 
 # Inicializar el servicio de geolocalización
 geolocation_service = GeolocationService()
