@@ -4,7 +4,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from crash.controllers import register_crash
 from crash.models import CrashModel, CrashRequestModel
-from services.geolocation_service import geolocation_service
+from services.gpio_service import gpio_service
 from utils.current_driver import current_driver
 from travel.controllers import get_kit_id
 import logging
@@ -21,7 +21,7 @@ async def api_register_crash(request: CrashRequestModel):
     """
 
     try:
-        coordinates = await geolocation_service.get_current_coordinates_async()
+        coordinates = await gpio_service.get_current_coordinates_async()
         kit_id = await get_kit_id()
         driver_id = current_driver.get_driver_id()
 

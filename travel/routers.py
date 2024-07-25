@@ -10,7 +10,7 @@ from travel.models import (
     TravelInitControllerModel,
     TravelEntityModel
 )
-from services.geolocation_service import geolocation_service
+from services.gpio_service import gpio_service
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +24,7 @@ async def travel_init_api(request: TravelInitRequestModel):
     This travel init API allow you to start a travel.
     """
     try:
-        coordinates = await geolocation_service.get_current_coordinates_async()
+        coordinates = await gpio_service.get_current_coordinates_async()
         travel_details = TravelInitControllerModel(
             driver_id=request.driver_id,
             date_day=datetime.now().date(),
@@ -43,7 +43,7 @@ async def asynctravel_finish_api():
     """
     This travel finish API allow you to finish a travel.
     """
-    coordinates = await geolocation_service.get_current_coordinates_async()
+    coordinates = await gpio_service.get_current_coordinates_async()
     if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
         coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
 

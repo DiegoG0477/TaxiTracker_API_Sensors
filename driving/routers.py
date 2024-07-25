@@ -4,7 +4,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from driving.controllers import register_driving
 from driving.models import DrivingModel, DrivingRequestModel
-from services.geolocation_service import geolocation_service
+from services.gpio_service import gpio_service
 from utils.current_driver import current_driver
 from utils.travel_state import travel_state
 from travel.controllers import get_kit_id
@@ -25,7 +25,7 @@ async def driving_register_api(request: DrivingRequestModel):
         return JSONResponse(status_code=status.HTTP_200_OK, content={"alert": "You must start a travel first"})
 
     try:
-        coordinates = await geolocation_service.get_current_coordinates_async()
+        coordinates = await gpio_service.get_current_coordinates_async()
         kit_id = await get_kit_id()
         driver_id = current_driver.get_driver_id()
         driving_details = DrivingModel(

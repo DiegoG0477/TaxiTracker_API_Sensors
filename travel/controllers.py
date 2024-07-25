@@ -10,7 +10,6 @@ from travel.models import (
     TravelEntityModel
 )
 from services.rabbitmq_service import RabbitMQService
-# from services.sensors_service import sensor_service
 from utils.travel_state import travel_state
 
 database = DatabaseConnector()
