@@ -7,6 +7,7 @@ import smbus
 import logging
 from driving.models import DrivingModel
 from driving.controllers import register_driving
+from services.geolocation_service import geolocation_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -169,6 +170,7 @@ class SensorService:
         while self.running:
             with self.lock:
                 if self.is_traveling:
+                    print("Processing sensor data...")
                     start_time = time.time()
                     sensor_data = []
                     while time.time() - start_time < 30 and self.is_traveling:
@@ -203,7 +205,7 @@ class SensorService:
                             )
                             
                             await register_driving(driving_data)
-                            logger.info("Driving data:", driving_data)
+                            print("Driving data:", driving_data)
                         except Exception as e:
                             logger.error(f"Error processing driving data: {e}")
                 else:
