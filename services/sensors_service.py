@@ -61,6 +61,8 @@ class SensorService:
         
         if retry_count == self.MAX_RETRIES:
             logger.error("Failed to initialize I2C bus after multiple attempts")
+        else:
+            logger.info("I2C initialization complete")
 
     async def start(self):
         if not self.task:
@@ -90,6 +92,8 @@ class SensorService:
             self.driver_id = driver_id
             self.is_traveling = True
         logger.info(f"Starting travel for kit_id: {kit_id}, driver_id: {driver_id}")
+        print(f"Is traveling: {self.is_traveling}")  # Asegúrate de que esto es True
+
 
     async def end_travel(self):
         with self.lock:
@@ -169,6 +173,7 @@ class SensorService:
                 self.initialize_i2c()
 
     async def process_sensor_data(self):
+        logger.info("Sensor data processing thread started")
         while self.running:
             with self.lock:
                 if self.is_traveling:
@@ -282,12 +287,14 @@ class SensorService:
             await asyncio.sleep(10)
     
     def MPU_Init(self):
+        logger.info("Initializing MPU6050...")
         # Inicialización del MPU6050
         self.bus.write_byte_data(self.Device_Address, self.SMPLRT_DIV, 7)
         self.bus.write_byte_data(self.Device_Address, self.PWR_MGMT_1, 1)
         self.bus.write_byte_data(self.Device_Address, self.CONFIG, 0)
         self.bus.write_byte_data(self.Device_Address, self.GYRO_CONFIG, 24)
         self.bus.write_byte_data(self.Device_Address, self.INT_ENABLE, 1)
+        logger.info("MPU6050 initialized")
 
     # def read_raw_data(self, addr):
     #     # Leer datos crudos del MPU6050
