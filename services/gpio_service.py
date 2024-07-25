@@ -6,7 +6,7 @@ import json
 import threading
 import serial
 import pynmea2
-from statistics import mean
+from statistics import mean, StatisticsError
 from gpiozero import InputDevice
 import smbus
 from database.connector import DatabaseConnector
@@ -241,16 +241,37 @@ class GpioService:
             return None
 
         print(self.data_buffer)
+        
+        # Filtrar datos para cada métrica
+        acc_x_positive = [d['acc_x'] for d in self.data_buffer if d['acc_x'] > 0]
+        acc_x_negative = [d['acc_x'] for d in self.data_buffer if d['acc_x'] < 0]
+        angles = [d['angle'] for d in self.data_buffer]
+        gyro_x = [d['gyro_x'] for d in self.data_buffer]
+        g_force_x = [d['g_force_x'] for d in self.data_buffer]
+        g_force_y = [d['g_force_y'] for d in self.data_buffer]
+        
+        try:
+            avg_data = {
+                "acceleration": mean(acc_x_positive) if acc_x_positive else 0,
+                "deceleration": abs(mean(acc_x_negative)) if acc_x_negative else 0,
+                "vibrations": sum(d['vibrations'] for d in self.data_buffer),
+                "inclination_angle": mean(angles) if angles else 0,
+                "angular_velocity": mean(gyro_x) if gyro_x else 0,
+                "g_force_x": mean(g_force_x) if g_force_x else 0,
+                "g_force_y": mean(g_force_y) if g_force_y else 0
+            }
+        except StatisticsError:
+            # Manejar el caso en que mean falla debido a listas vacías
+            avg_data = {
+                "acceleration": 0,
+                "deceleration": 0,
+                "vibrations": 0,
+                "inclination_angle": 0,
+                "angular_velocity": 0,
+                "g_force_x": 0,
+                "g_force_y": 0
+            }
 
-        avg_data = {
-            "acceleration": mean([d['acc_x'] for d in self.data_buffer if d['acc_x'] > 0]),
-            "deceleration": abs(mean([d['acc_x'] for d in self.data_buffer if d['acc_x'] < 0])),
-            "vibrations": sum(d['vibrations'] for d in self.data_buffer),
-            "inclination_angle": mean(d['angle'] for d in self.data_buffer),
-            "angular_velocity": mean(d['gyro_x'] for d in self.data_buffer),
-            "g_force_x": mean(d['g_force_x'] for d in self.data_buffer),
-            "g_force_y": mean(d['g_force_y'] for d in self.data_buffer)
-        }
         return avg_data
 
     def send_driving_data(self, data):
