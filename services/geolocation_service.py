@@ -84,7 +84,7 @@ class GeolocationService:
                         "kit_id": self.kit_id,
                         "driver_id": self.driver_id,
                         "datetime": datetime.now().isoformat(),
-                        "status": "GPS coordinates are not valid or sensor is calibrating."
+                        "coordinates": "..."
                     }), "geolocation.status")
             except Exception as e:
                 print(f"Error saving coordinates to DB or sending to RabbitMQ: {e}")
