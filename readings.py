@@ -4,6 +4,7 @@ from gpiozero import InputDevice
 import smbus
 import logging
 import requests
+from statistics import mean
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,6 +32,9 @@ class SensorReader:
         self.vibrations = 0
         self.shocks = 0
         self.last_shock_time = self.millis()
+
+        # Buffer for 30-second data
+        self.data_buffer = []
 
     def initialize_i2c(self):
         retry_count = 0
@@ -120,6 +124,21 @@ class SensorReader:
                     return 0
                 self.initialize_i2c()
 
+    def calculate_averages(self):
+        if not self.data_buffer:
+            return None
+
+        avg_data = {
+            "acceleration": mean([d['acc_x'] for d in self.data_buffer if d['acc_x'] > 0]),
+            "deceleration": abs(mean([d['acc_x'] for d in self.data_buffer if d['acc_x'] < 0])),
+            "vibrations": sum(d['vibrations'] for d in self.data_buffer),
+            "inclination_angle": mean(d['angle'] for d in self.data_buffer),
+            "angular_velocity": mean(d['gyro_x'] for d in self.data_buffer),
+            "g_force_x": mean(d['g_force_x'] for d in self.data_buffer),
+            "g_force_y": mean(d['g_force_y'] for d in self.data_buffer)
+        }
+        return avg_data
+
     def send_driving_data(self, data):
         payload = {
             "datetime": datetime.now().isoformat(),
@@ -147,12 +166,12 @@ class SensorReader:
     def check_for_collision(self, data):
         if data['g_force'] > self.G_FORCE_THRESHOLD:
             logger.warning("Collision detected!")
-            # Send alert to the driver
+            self.send_crash_alert(data)
 
     def send_crash_alert(self, data):
         payload = {
-            "datetime":datetime.now(),
-            "impact_force":data['g_force'],
+            "datetime": datetime.now().isoformat(),
+            "impact_force": data['g_force'],
         }
 
         try:
@@ -190,12 +209,19 @@ def main():
     
     try:
         while True:
-            sensor_data = sensor_reader.read_sensors()
-            if sensor_data:
-                logger.info(f"Sensor data: {sensor_data}")
-                sensor_reader.check_for_collision(sensor_data)
-                sensor_reader.send_driving_data(sensor_data)
-            time.sleep(30)
+            start_time = time.time()
+            while time.time() - start_time < 30:
+                sensor_data = sensor_reader.read_sensors()
+                if sensor_data:
+                    logger.info(f"Sensor data: {sensor_data}")
+                    sensor_reader.check_for_collision(sensor_data)
+                    sensor_reader.data_buffer.append(sensor_data)
+                time.sleep(1)
+            
+            avg_data = sensor_reader.calculate_averages()
+            if avg_data:
+                sensor_reader.send_driving_data(avg_data)
+            sensor_reader.data_buffer = []  # Clear the buffer after sending data
     except KeyboardInterrupt:
         logger.info("Sensor readings stopped by user.")
 
