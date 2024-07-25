@@ -29,7 +29,7 @@ async def travel_init(travel_model: TravelInitControllerModel) -> str:
         await ensure_driver_exists(driver_id)
 
         try:
-            result = database.query_post(
+            result = await database.query_post(
                 """
                 INSERT INTO init_travels (driver_id, date, start_hour, start_coordinates)
                 VALUES (%s, %s, %s, ST_GeomFromText(%s));
@@ -97,7 +97,7 @@ async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
     print("Travel finished:", message)
     
     try:
-        database.query_post_travel((
+        await database.query_post_travel((
             travel.driver_id,
             travel.date_day,
             travel.start_datetime,
@@ -113,7 +113,7 @@ async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
 
 
 async def get_driver_by_id(id: str) -> Optional[dict]:
-    drivers = database.query_get(
+    drivers = await database.query_get(
         """
         SELECT
             id,
@@ -129,7 +129,7 @@ async def get_driver_by_id(id: str) -> Optional[dict]:
     return drivers[0]
 
 async def get_last_init_travel() -> dict:
-    travel = database.query_get(
+    travel = await database.query_get(
         """
         SELECT
             driver_id,
@@ -150,7 +150,7 @@ async def get_last_init_travel() -> dict:
 
 async def get_kit_id() -> str:
     try:
-        kit = database.query_get(
+        kit = await database.query_get(
             """
             SELECT
             kit_id
@@ -172,24 +172,28 @@ async def get_kit_id() -> str:
         print(f"Error getting kit ID: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 async def ensure_driver_exists(driver_id: str):
     try:
-        print("known driver")
-        result = await database.query_post(
+        print("Checking driver existence")
+        # Realiza la consulta para verificar si el driver existe
+        result = await database.query_get(
             """
             SELECT 1 FROM taxitracker.drivers WHERE id = %s
             """,
             (driver_id,)
         )
         if not result:
-            print("driver doesn't exists, it will be registered automatically")            
+            print("Driver doesn't exist, it will be registered automatically")
+            # Inserta el nuevo driver si no existe
+            kit_id = await get_kit_id()
             await database.query_post(
                 """
-                INSERT INTO taxitracker.drivers (id, column1, column2, ...)
-                VALUES (%s, value1, value2, ...)
+                INSERT INTO taxitracker.drivers (id, kit_id)
+                VALUES (%s, %s)
                 """,
-                (driver_id,)
+                (driver_id, kit_id)
             )
-    except SQLAlchemyError as e:
+    except Exception as e:
         print(f"Error ensuring driver existence: {e}")
         raise HTTPException(status_code=500, detail="Error ensuring driver existence")

@@ -1,9 +1,8 @@
+import aiomysql
+from typing import Tuple, Any
 from fastapi import HTTPException, status
 import os
-import pymysql.cursors
-from pymysql import converters
 from dotenv import load_dotenv
-from typing import Tuple, Any
 
 load_dotenv('local.env') 
 
@@ -14,10 +13,6 @@ class DatabaseConnector:
         self.password = os.getenv("DATABASE_PASSWORD")
         self.database = os.getenv("DATABASE")
         self.port = int(os.getenv("DATABASE_PORT"))
-        self.conversions = converters.conversions
-        self.conversions[pymysql.FIELD_TYPE.BIT] = (
-            lambda x: False if x == b"\x00" else True
-        )
         if not self.host:
             raise EnvironmentError("DATABASE_HOST environment variable not found")
         if not self.user:
@@ -27,38 +22,34 @@ class DatabaseConnector:
         if not self.database:
             raise EnvironmentError("DATABASE environment variable not found")
 
-    def get_connection(self):
-        connection = pymysql.connect(
+    async def get_connection(self):
+        return await aiomysql.connect(
             host=self.host,
             port=self.port,
             user=self.user,
             password=self.password,
-            database=self.database,
-            cursorclass=pymysql.cursors.DictCursor,
-            conv=self.conversions,
+            db=self.database,
+            loop=asyncio.get_event_loop(),
+            autocommit=True
         )
-        return connection
 
-    def query_get(self, sql, param=None):
+    async def query_get(self, sql, param=None):
         try:
-            connection = self.get_connection()
-            with connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(sql, param)
-                    return cursor.fetchall()
+            async with self.get_connection() as connection:
+                async with connection.cursor(aiomysql.DictCursor) as cursor:
+                    await cursor.execute(sql, param)
+                    return await cursor.fetchall()
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Database error: " + str(e),
             )
         
-    def query_post(self, sql, param):
+    async def query_post(self, sql, param):
         try:
-            connection = self.get_connection()
-            with connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(sql, param)
-                    connection.commit()
+            async with self.get_connection() as connection:
+                async with connection.cursor() as cursor:
+                    await cursor.execute(sql, param)
                     return cursor.lastrowid
         except Exception as e:
             raise HTTPException(
@@ -66,28 +57,26 @@ class DatabaseConnector:
                 detail="Database error: " + str(e),
             )
         
-    def query_post_travel(self, travel_data: Tuple[Any, ...]) -> int:
+    async def query_post_travel(self, travel_data: Tuple[Any, ...]) -> int:
         try:
-            connection = self.get_connection()
-            with connection:
-                with connection.cursor() as cursor:
+            async with self.get_connection() as connection:
+                async with connection.cursor() as cursor:
                     # Insertar el viaje
-                    cursor.execute("""
+                    await cursor.execute("""
                         INSERT INTO travels (driver_id, date, start_hour, end_hour, start_coordinates, end_coordinates)
                         VALUES (%s, %s, %s, %s, ST_GeomFromText(%s), ST_GeomFromText(%s))
                         RETURNING id;
                     """, travel_data)
                     
-                    new_travel_id = cursor.fetchone()[0]
+                    new_travel_id = await cursor.fetchone()
                     
                     # Actualizar travels_location
-                    cursor.execute("""
+                    await cursor.execute("""
                         UPDATE travels_location
                         SET travel_id = %s
                         WHERE travel_id = 9999;
                     """, (new_travel_id,))
                     
-                    connection.commit()
                     return new_travel_id
         except Exception as e:
             raise HTTPException(

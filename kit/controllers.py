@@ -5,8 +5,8 @@ from kit.models import KitEntityModel
 
 database = DatabaseConnector()
 
-def get_kit() -> KitEntityModel:
-    kit = database.query_get(
+async def get_kit() -> KitEntityModel:
+    kit = await database.query_get(
         """
         SELECT
         kit_id

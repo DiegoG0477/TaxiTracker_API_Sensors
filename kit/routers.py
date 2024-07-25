@@ -7,9 +7,9 @@ from kit.controllers import get_kit
 router = APIRouter()
 
 @router.get("/kit/", response_model=KitEntityModel)
-def get_kit_api():
+async def get_kit_api():
     """
     This API allow you to get the kit information.
     """
-    kit = get_kit()
+    kit = await get_kit()
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(kit))

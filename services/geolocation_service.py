@@ -60,7 +60,7 @@ class GeolocationService:
         async with self.coordinates_lock:
             self.current_coordinates = new_coordinates
 
-    def send_coordinates_periodically(self):
+    async def send_coordinates_periodically(self):
         db_conn = self.database.get_connection()
         cursor = db_conn.cursor()
         while self.running:
@@ -75,7 +75,7 @@ class GeolocationService:
 
                 if self.coordinates_valid:
                     point = f"POINT({coordinates['latitude']} {coordinates['longitude']})"
-                    cursor.execute(
+                    await cursor.execute(
                         "INSERT INTO geolocation (coordinates, geo_time) VALUES (ST_GeomFromText(%s), %s)",
                         (point, datetime.now())
                     )
