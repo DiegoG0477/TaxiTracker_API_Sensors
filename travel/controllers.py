@@ -99,7 +99,7 @@ async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
         "end_coordinates": travel.end_coordinates,
     })
 
-    rabbitmq_service.send_message(message, "travel.register")
+    await rabbitmq_service.send_message(message, "travel.register")
 
     print("Travel finished:", message)
     
