@@ -243,6 +243,39 @@ class SensorService:
         while self.running:
             logger.info("Sensor service running...")
             await asyncio.sleep(10)
+    
+    def MPU_Init(self):
+        # Inicialización del MPU6050
+        self.bus.write_byte_data(self.Device_Address, self.SMPLRT_DIV, 7)
+        self.bus.write_byte_data(self.Device_Address, self.PWR_MGMT_1, 1)
+        self.bus.write_byte_data(self.Device_Address, self.CONFIG, 0)
+        self.bus.write_byte_data(self.Device_Address, self.GYRO_CONFIG, 24)
+        self.bus.write_byte_data(self.Device_Address, self.INT_ENABLE, 1)
+
+    # def read_raw_data(self, addr):
+    #     # Leer datos crudos del MPU6050
+    #     high = self.bus.read_byte_data(self.Device_Address, addr)
+    #     low = self.bus.read_byte_data(self.Device_Address, addr + 1)
+    #     value = ((high << 8) | low)
+    #     if value > 32768:
+    #         value = value - 65536
+    #     return value
+
+    def millis(self):
+        return int(round(time.time() * 1000))
+
+    # Direcciones y registros del MPU6050
+    PWR_MGMT_1 = 0x6B
+    SMPLRT_DIV = 0x19
+    CONFIG = 0x1A
+    GYRO_CONFIG = 0x1B
+    INT_ENABLE = 0x38
+    ACCEL_XOUT = 0x3B
+    ACCEL_YOUT = 0x3D
+    ACCEL_ZOUT = 0x3F
+    GYRO_XOUT = 0x43
+    GYRO_YOUT = 0x45
+    GYRO_ZOUT = 0x47
 
 # Crear una instancia del servicio
 sensor_service = SensorService()
