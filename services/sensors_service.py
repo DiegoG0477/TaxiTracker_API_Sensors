@@ -88,21 +88,20 @@ class SensorService:
         if self.sensor_thread.is_alive():
             self.sensor_thread.join()
 
-    async def start_travel(self, kit_id, driver_id):
+    def start_travel(self, kit_id, driver_id):
         with self.lock:
             self.kit_id = kit_id
             self.driver_id = driver_id
             self.is_traveling = True
-        logger.info(f"Starting travel for kit_id: {kit_id}, driver_id: {driver_id}")
+        print(f"Starting travel for kit_id: {kit_id}, driver_id: {driver_id}")
         print(f"Is traveling: {self.is_traveling}")  # Asegúrate de que esto es True
 
-
-    async def end_travel(self):
+    def end_travel(self):
         with self.lock:
             self.is_traveling = False
             self.kit_id = None
             self.driver_id = None
-        logger.info("Travel stopped")
+        print("Travel stopped")
 
     def read_sensors(self):
         retry_count = 0

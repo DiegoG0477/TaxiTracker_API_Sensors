@@ -25,7 +25,7 @@ async def travel_init(travel_model: TravelInitControllerModel) -> str:
                 detail="No kit or driver found"
             )
         
-        await sensor_service.start_travel(kit_id, driver_id)
+        sensor_service.start_travel(kit_id, driver_id)
         
         # Método para agregar al driver si no existe
         await ensure_driver_exists(driver_id)
