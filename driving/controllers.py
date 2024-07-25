@@ -14,7 +14,7 @@ rabbitmq_service = RabbitMQService()
 
 async def register_driving(driving_model: DrivingModel) -> str:
     try:                
-        print('sending driving data by rabbitmq')
+        print('sending driving data to rabbitmq')
         message = json.dumps({
             "kit_id": driving_model.kit_id,
             "driver_id": driving_model.driver_id,
