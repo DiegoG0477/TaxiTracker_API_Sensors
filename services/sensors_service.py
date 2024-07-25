@@ -70,7 +70,8 @@ class SensorService:
                 logger.info("Starting sensor service...")
                 self.sensor_thread.start()  # Iniciar el hilo para sensores
                 # self.task = asyncio.create_task(self.check_sensor_status())
-                self.task = asyncio.create_task(self.process_sensor_data())
+                # self.task = asyncio.create_task(self.process_sensor_data())
+                self.task = await asyncio.get_event_loop().run_in_executor(None, self.process_sensor_data)
             except Exception as e:
                 logger.error(f"Error starting sensor service: {e}")
 
