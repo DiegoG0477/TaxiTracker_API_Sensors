@@ -177,7 +177,8 @@ class SensorService:
         while self.running:
             with self.lock:
                 if self.is_traveling:
-                    print("Processing sensor data...")
+                    logger.info("Processing sensor data...")
+                    # Aquí, asegúrate de que este bloque de código se ejecuta
                     start_time = time.time()
                     sensor_data = []
                     while time.time() - start_time < 30 and self.is_traveling:
@@ -216,7 +217,9 @@ class SensorService:
                         except Exception as e:
                             logger.error(f"Error processing driving data: {e}")
                 else:
+                    logger.info("Not traveling, waiting...")
                     await asyncio.sleep(1)
+
 
     def calculate_averages(self, sensor_data):
         avg_data = {}
