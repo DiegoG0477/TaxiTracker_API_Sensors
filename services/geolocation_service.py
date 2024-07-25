@@ -25,6 +25,7 @@ class GeolocationService:
         try:
             self.thread = threading.Thread(target=self.read_gps_data)
             self.thread.start()
+            await self.rabbitmq_service.connect()  # Connect to RabbitMQ
             asyncio.create_task(self.send_coordinates_periodically())
             self.kit_id = await get_kit_id()
             self.driver_id = await get_last_driver_id()
@@ -34,9 +35,8 @@ class GeolocationService:
     async def stop(self):
         self.running = False
         self.thread.join()
-        self.thread_save_send.join()
         self.ser.close()
-        self.rabbitmq_service.close_connection()
+        await self.rabbitmq_service.close_connection()
 
     def read_gps_data(self):
         while self.running:
@@ -96,9 +96,9 @@ class GeolocationService:
                 return self.current_coordinates
             else:
                 return "Coordinates not valid or sensor calibrating"
-    
-    def get_current_coordinates(self):
-        asyncio.run(self.get_current_coordinates_async())
+
+    async def get_current_coordinates(self):
+        return await self.get_current_coordinates_async()
 
 # Inicializar el servicio de geolocalización
 geolocation_service = GeolocationService()

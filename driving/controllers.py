@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
 
-def register_driving(driving_model: DrivingModel) -> str:
+async def register_driving(driving_model: DrivingModel) -> str:
     try:                
+        print('sending driving data by rabbitmq')
         message = json.dumps({
             "kit_id": driving_model.kit_id,
             "driver_id": driving_model.driver_id,
@@ -29,7 +30,7 @@ def register_driving(driving_model: DrivingModel) -> str:
             "g_force_y": driving_model.g_force_y,
         })
 
-        rabbitmq_service.send_message(message, "driving.tracking")
+        await rabbitmq_service.send_message(message, "driving.tracking")
 
         database.query_post(
             """

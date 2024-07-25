@@ -1,6 +1,6 @@
 import os
-import pika
 import json
+import aio_pika
 from dotenv import load_dotenv
 
 load_dotenv('local.env')
@@ -12,18 +12,29 @@ class RabbitMQService:
         self.username = os.getenv('RABBITMQ_USERNAME')
         self.password = os.getenv('RABBITMQ_PASSWORD')
         self.exchange = os.getenv('RABBITMQ_EXCHANGE')
+        self.connection = None
+        self.channel = None
 
-        credentials = pika.PlainCredentials(self.username, self.password)
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host, port=self.port, credentials=credentials))
-        self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange=self.exchange, exchange_type='topic', durable=True)
+    async def connect(self):
+        self.connection = await aio_pika.connect_robust(
+            f"amqp://{self.username}:{self.password}@{self.host}:{self.port}/"
+        )
+        self.channel = await self.connection.channel()
+        await self.channel.declare_exchange(self.exchange, aio_pika.ExchangeType.TOPIC, durable=True)
 
-    def send_message(self, data, event):
+    async def send_message(self, data, event):
+        if not self.connection or self.connection.is_closed:
+            await self.connect()
+        
         message = {
             'data': data,
             'event': event
         }
-        self.channel.basic_publish(exchange=self.exchange, routing_key='', body=json.dumps(message))
+        await self.channel.default_exchange.publish(
+            aio_pika.Message(body=json.dumps(message).encode()),
+            routing_key=''
+        )
 
-    def close_connection(self):
-        self.connection.close()
+    async def close_connection(self):
+        if self.connection and not self.connection.is_closed:
+            await self.connection.close()
