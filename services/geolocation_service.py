@@ -65,7 +65,7 @@ class GeolocationService:
         cursor = db_conn.cursor()
         while self.running:
             try:
-                coordinates = asyncio.run(self.get_current_coordinates_async())
+                coordinates = self.get_current_coordinates()
                 message = json.dumps({
                     "kit_id": self.kit_id,
                     "driver_id": self.driver_id,
@@ -82,13 +82,13 @@ class GeolocationService:
                     db_conn.commit()
                     self.rabbitmq_service.send_message(message, "geolocation.update")
                 else:
+                    print("GPS coordinates are not valid or sensor is calibrating.")
                     self.rabbitmq_service.send_message(json.dumps({
                         "kit_id": self.kit_id,
                         "driver_id": self.driver_id,
                         "datetime": datetime.now().isoformat(),
                         "status": "GPS coordinates are not valid or sensor is calibrating."
                     }), "geolocation.status")
-
             except Exception as e:
                 print(f"Error saving coordinates to DB or sending to RabbitMQ: {e}")
             time.sleep(3)
