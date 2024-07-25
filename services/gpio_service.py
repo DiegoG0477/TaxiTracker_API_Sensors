@@ -136,7 +136,10 @@ class GpioService:
     async def process_gps_data(self):
         try:
             coordinates = await self.get_current_coordinates_async()
-            coordinates = f"{coordinates['latitude']},{coordinates['longitude']}"
+            if coordinates != "Coordinates not valid or sensor calibrating":
+                lat = coordinates['latitude']
+                lon = coordinates['longitude']
+                coordinates = f"{lat},{lon}"
 
             if not travel_state.get_travel_status():
                 driver_id = await get_last_driver_id()
