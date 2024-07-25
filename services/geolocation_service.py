@@ -25,8 +25,7 @@ class GeolocationService:
         try:
             self.thread = threading.Thread(target=self.read_gps_data)
             self.thread.start()
-            self.thread_save_send = threading.Thread(target=self.send_coordinates_periodically)
-            self.thread_save_send.start()
+            asyncio.create_task(self.send_coordinates_periodically())
             self.kit_id = await get_kit_id()
             self.driver_id = await get_last_driver_id()
         except Exception as e:
@@ -60,12 +59,10 @@ class GeolocationService:
         with self.coordinates_lock:
             self.current_coordinates = new_coordinates
 
-    def send_coordinates_periodically(self):
-        db_conn = self.database.get_connection()
-        cursor = db_conn.cursor()
+    async def send_coordinates_periodically(self):
         while self.running:
             try:
-                coordinates = self.get_current_coordinates()
+                coordinates = await self.get_current_coordinates_async()
                 message = json.dumps({
                     "kit_id": self.kit_id,
                     "driver_id": self.driver_id,
@@ -74,16 +71,16 @@ class GeolocationService:
                 })
 
                 if self.coordinates_valid:
+                    print('Sending coordinates:', message)
                     point = f"POINT({coordinates['latitude']} {coordinates['longitude']})"
-                    cursor.execute(
+                    await self.database.query_post(
                         "INSERT INTO geolocation (coordinates, geo_time) VALUES (ST_GeomFromText(%s), %s)",
                         (point, datetime.now())
                     )
-                    db_conn.commit()
-                    self.rabbitmq_service.send_message(message, "geolocation.update")
+                    await self.rabbitmq_service.send_message(message, "geolocation.update")
                 else:
                     print("GPS coordinates are not valid or sensor is calibrating.")
-                    self.rabbitmq_service.send_message(json.dumps({
+                    await self.rabbitmq_service.send_message(json.dumps({
                         "kit_id": self.kit_id,
                         "driver_id": self.driver_id,
                         "datetime": datetime.now().isoformat(),
@@ -91,7 +88,7 @@ class GeolocationService:
                     }), "geolocation.status")
             except Exception as e:
                 print(f"Error saving coordinates to DB or sending to RabbitMQ: {e}")
-            time.sleep(3)
+            await asyncio.sleep(3)
 
     async def get_current_coordinates_async(self):
         async with self.coordinates_lock:
