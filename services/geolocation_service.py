@@ -79,7 +79,7 @@ class GeolocationService:
                     )
                     await self.rabbitmq_service.send_message(message, "geolocation.update")
                 else:
-                    # print("GPS coordinates are not valid or sensor is calibrating.")
+                    print("GPS coordinates are not valid or sensor is calibrating.")
                     await self.rabbitmq_service.send_message(json.dumps({
                         "kit_id": self.kit_id,
                         "driver_id": self.driver_id,

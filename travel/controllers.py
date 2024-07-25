@@ -10,7 +10,8 @@ from travel.models import (
     TravelEntityModel
 )
 from services.rabbitmq_service import RabbitMQService
-from services.sensors_service import sensor_service
+# from services.sensors_service import sensor_service
+from utils.travel_state import travel_state
 
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
@@ -25,10 +26,12 @@ async def travel_init(travel_model: TravelInitControllerModel) -> str:
                 detail="No kit or driver found"
             )
         
-        sensor_service.start_travel(kit_id, driver_id)
+        # sensor_service.start_travel(kit_id, driver_id)
         
         # Método para agregar al driver si no existe
         await ensure_driver_exists(driver_id)
+
+        travel_state.start_travel()
 
         try:
             result = await database.query_post(
@@ -80,7 +83,9 @@ async def travel_finish(travel_model: TravelFinishRequestModel) -> Any:
         print(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail="Invalid data")
 
-    await sensor_service.end_travel()
+    # await sensor_service.end_travel()
+
+    travel_state.end_travel()
 
     message = json.dumps({
         "driver_id": travel.driver_id,

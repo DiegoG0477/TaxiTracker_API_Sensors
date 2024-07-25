@@ -15,10 +15,15 @@ COPY local.env .env
 
 # Use environment variables from .env file
 ENV $(cat .env | xargs)
-
 ENV PORT 8080
+
 EXPOSE 8080
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Install Supervisor
+RUN apt-get update && apt-get install -y supervisor
 
-# uvicorn main:app --host 0.0.0.0 --port 8000
+# Copy supervisor configuration file
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Command to run Supervisor
+CMD ["/usr/bin/supervisord"]

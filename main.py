@@ -9,11 +9,11 @@ from services.sensors_service import sensor_service
 async def lifespan(app: FastAPI):
     # Código que se ejecuta antes de que la aplicación inicie
     await geolocation_service.start()
-    await sensor_service.start()
+    # await sensor_service.start()
     yield
     # Código que se ejecuta cuando la aplicación se está cerrando
     await geolocation_service.stop()
-    await sensor_service.stop()
+    # await sensor_service.stop()
 
 # Set API info
 app = FastAPI(

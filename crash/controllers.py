@@ -18,7 +18,15 @@ async def register_crash(crash_model: CrashRequestModel) -> str:
             detail=DRIVER_NOT_FOUND
         )
     
-    await rabbitmq_service.send_message(json.dumps(crash_model.model_dump_json()), "crash.detected")
+    crash_message = json.dumps({
+        "kit_id": crash_model.kit_id,
+        "driver_id": crash_model.driver_id,
+        "datetime": crash_model.datetime.isoformat(),
+        "impact_force": crash_model.impact_force,
+        "crash_coordinates": crash_model.crash_coordinates,
+    })
+    
+    await rabbitmq_service.send_message(crash_message, "crash.detected")
 
     # Insert the crash
     return await database.query_post(

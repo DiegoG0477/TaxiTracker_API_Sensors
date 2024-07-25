@@ -78,7 +78,6 @@ async def register_driving(driving_model: DrivingModel) -> str:
         return "Driving data registered successfully"
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    
 
 
 async def register_driving_with_retry(driving_data, max_retries=3, retry_delay=1):
