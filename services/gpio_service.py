@@ -139,6 +139,8 @@ class GpioService:
                 lat = coordinates['latitude']
                 lon = coordinates['longitude']
                 coordinates_str = f"{lat},{lon}"
+            else:
+                coordinates_str = "..."
 
             if not travel_state.get_travel_status():
                 driver_id = await get_last_driver_id()
