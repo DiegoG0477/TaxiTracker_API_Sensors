@@ -134,7 +134,7 @@ class GpioService:
 
     async def process_gps_data(self):
         try:
-            coordinates = await self.get_current_coordinates_async()
+            coordinates = self.get_current_coordinates()
             if coordinates != "Coordinates not valid or sensor calibrating":
                 lat = coordinates['latitude']
                 lon = coordinates['longitude']
@@ -283,8 +283,8 @@ class GpioService:
         except Exception as e:
             logger.error(f"Error sending crash alert: {e}")
 
-    async def get_current_coordinates_async(self):
-        async with self.coordinates_lock:
+    def get_current_coordinates(self):
+        with self.coordinates_lock:
             if self.coordinates_valid:
                 return self.current_coordinates
             else:
