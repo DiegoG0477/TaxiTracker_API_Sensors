@@ -229,6 +229,10 @@ class GpioService:
         if retry_count == self.MAX_RETRIES:
             logger.error("Failed to read sensors after multiple attempts")
         return None
+    
+    async def get_current_coordinates_async(self):
+        result = await asyncio.to_thread(self.get_current_coordinates)
+        return result
 
     def check_for_collision(self, sensor_data):
         if abs(sensor_data['g_force_x']) > self.G_FORCE_THRESHOLD or abs(sensor_data['g_force_y']) > self.G_FORCE_THRESHOLD:
