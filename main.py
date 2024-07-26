@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from travel.routers import router as travel_router
 from kit.routers import router as kit_router
+from geolocation.routers import router as geolocation_router
 from services.gpio_service import gpio_service
 
 @asynccontextmanager
@@ -40,3 +41,4 @@ Provides user CRUD APIs.
 
 app.include_router(travel_router)
 app.include_router(kit_router)
+app.include_router(geolocation_router)
