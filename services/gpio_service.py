@@ -46,7 +46,7 @@ class GpioService:
         self.current_coordinates = {'latitude': 0.0, 'longitude': 0.0}
         self.coordinates_valid = False
         self.ser = serial.Serial(gps_port, baudrate=gps_baudrate, timeout=gps_timeout)
-        self.coordinates_lock = asyncio.Lock()
+        self.coordinates_lock = threading.Lock()
 
     async def start(self):
         try:
@@ -91,7 +91,6 @@ class GpioService:
         while self.running:
             sensor_data = self.read_sensors()
             if sensor_data:
-                # logger.info(f"Sensor data: {sensor_data}")
                 self.check_for_collision(sensor_data)
                 self.data_buffer.append(sensor_data)
             time.sleep(1)
@@ -139,7 +138,7 @@ class GpioService:
             if coordinates != "Coordinates not valid or sensor calibrating":
                 lat = coordinates['latitude']
                 lon = coordinates['longitude']
-                coordinates = f"{lat},{lon}"
+                coordinates_str = f"{lat},{lon}"
 
             if not travel_state.get_travel_status():
                 driver_id = await get_last_driver_id()
@@ -150,7 +149,7 @@ class GpioService:
                 "kit_id": self.kit_id,
                 "driver_id": driver_id,
                 "datetime": datetime.now().isoformat(),
-                "coordinates": coordinates
+                "coordinates": coordinates_str
             })
 
             if self.coordinates_valid:
@@ -224,121 +223,65 @@ class GpioService:
                 logger.error(f"Error reading sensors (attempt {retry_count + 1}): {e}")
                 retry_count += 1
                 time.sleep(self.RETRY_DELAY)
-                if retry_count == self.MAX_RETRIES:
-                    logger.error("Failed to read sensors after multiple attempts")
-                    return None
-                self.initialize_i2c()
-    
-    def read_raw_data(self, addr):
-        retry_count = 0
-        while retry_count < self.MAX_RETRIES:
-            try:
-                high = self.bus.read_byte_data(self.Device_Address, addr)
-                low = self.bus.read_byte_data(self.Device_Address, addr + 1)
-                value = ((high << 8) | low)
-                if value > 32768:
-                    value = value - 65536
-                return value
-            except OSError as e:
-                logger.error(f"Error reading raw data (attempt {retry_count + 1}): {e}")
-                retry_count += 1
-                time.sleep(self.RETRY_DELAY)
-                if retry_count == self.MAX_RETRIES:
-                    logger.error(f"Failed to read raw data from address {addr} after multiple attempts")
-                    return 0
-                self.initialize_i2c()
+        
+        if retry_count == self.MAX_RETRIES:
+            logger.error("Failed to read sensors after multiple attempts")
+        return None
+
+    def check_for_collision(self, sensor_data):
+        if abs(sensor_data['g_force_x']) > self.G_FORCE_THRESHOLD or abs(sensor_data['g_force_y']) > self.G_FORCE_THRESHOLD:
+            logger.warning(f"High G-force detected: X={sensor_data['g_force_x']}g, Y={sensor_data['g_force_y']}g")
+            self.send_crash_alert(sensor_data)
+
+    def calculate_g_force(self, ax, ay, az):
+        return round((ax ** 2 + ay ** 2 + az ** 2) ** 0.5, 2)
 
     def calculate_averages(self):
-        if not self.data_buffer:
+        try:
+            avg_acc_x = round(mean([data['acc_x'] for data in self.data_buffer]), 2)
+            avg_acc_y = round(mean([data['acc_y'] for data in self.data_buffer]), 2)
+            avg_acc_z = round(mean([data['acc_z'] for data in self.data_buffer]), 2)
+            avg_gyro_x = round(mean([data['gyro_x'] for data in self.data_buffer]), 2)
+            avg_gyro_y = round(mean([data['gyro_y'] for data in self.data_buffer]), 2)
+            avg_gyro_z = round(mean([data['gyro_z'] for data in self.data_buffer]), 2)
+            avg_angle = round(mean([data['angle'] for data in self.data_buffer]), 2)
+            avg_g_force = round(mean([data['g_force'] for data in self.data_buffer]), 2)
+
+            return {
+                'avg_acc_x': avg_acc_x, 'avg_acc_y': avg_acc_y, 'avg_acc_z': avg_acc_z,
+                'avg_gyro_x': avg_gyro_x, 'avg_gyro_y': avg_gyro_y, 'avg_gyro_z': avg_gyro_z,
+                'avg_angle': avg_angle, 'avg_g_force': avg_g_force,
+                'vibrations': self.vibrations, 'shocks': self.shocks
+            }
+        except StatisticsError as e:
+            logger.error(f"Error calculating averages: {e}")
             return None
 
-        print(self.data_buffer)
-        
-        # Filtrar datos para cada métrica
-        acc_x_positive = [d['acc_x'] for d in self.data_buffer if d['acc_x'] > 0]
-        acc_x_negative = [d['acc_x'] for d in self.data_buffer if d['acc_x'] < 0]
-        angles = [d['angle'] for d in self.data_buffer]
-        gyro_x = [d['gyro_x'] for d in self.data_buffer]
-        g_force_x = [d['g_force_x'] for d in self.data_buffer]
-        g_force_y = [d['g_force_y'] for d in self.data_buffer]
-        
+    async def send_driving_data(self, avg_data):
         try:
-            avg_data = {
-                "acceleration": mean(acc_x_positive) if acc_x_positive else 0,
-                "deceleration": abs(mean(acc_x_negative)) if acc_x_negative else 0,
-                "vibrations": sum(d['vibrations'] for d in self.data_buffer),
-                "inclination_angle": mean(angles) if angles else 0,
-                "angular_velocity": mean(gyro_x) if gyro_x else 0,
-                "g_force_x": mean(g_force_x) if g_force_x else 0,
-                "g_force_y": mean(g_force_y) if g_force_y else 0
-            }
-        except StatisticsError:
-            # Manejar el caso en que mean falla debido a listas vacías
-            avg_data = {
-                "acceleration": 0,
-                "deceleration": 0,
-                "vibrations": 0,
-                "inclination_angle": 0,
-                "angular_velocity": 0,
-                "g_force_x": 0,
-                "g_force_y": 0
-            }
-
-        return avg_data
-
-    async def send_driving_data(self, data):
-        driving_model = DrivingRequestModel(
-            datetime=datetime.now(),
-            acceleration=data['acceleration'],
-            deceleration=data['deceleration'],
-            vibrations=data['vibrations'],
-            inclination_angle=data['inclination_angle'],
-            angular_velocity=data['angular_velocity'],
-            g_force_x=data['g_force_x'],
-            g_force_y=data['g_force_y']
-        )
-        try:
-            await register_driving_gpio(driving_model)
+            driving_request = DrivingRequestModel(
+                kit_id=self.kit_id,
+                avg_acc_x=avg_data['avg_acc_x'], avg_acc_y=avg_data['avg_acc_y'], avg_acc_z=avg_data['avg_acc_z'],
+                avg_gyro_x=avg_data['avg_gyro_x'], avg_gyro_y=avg_data['avg_gyro_y'], avg_gyro_z=avg_data['avg_gyro_z'],
+                avg_angle=avg_data['avg_angle'], avg_g_force=avg_data['avg_g_force'],
+                vibrations=self.vibrations, shocks=self.shocks,
+                datetime=datetime.now().isoformat()
+            )
+            await register_driving_gpio(driving_request)
         except Exception as e:
             logger.error(f"Error sending driving data: {e}")
 
-
-    def millis(self):
-        return int(round(time.time() * 1000))
-
-    def calculate_g_force(self, x, y, z):
-        return (x ** 2 + y ** 2 + z ** 2) ** 0.5
-
-    async def check_for_collision(self, data):
-        if data['g_force'] > self.G_FORCE_THRESHOLD:
-            logger.warning("Collision detected!")
-            await self.send_crash_alert(data)
-
-    async def send_crash_alert(self, data):
-        if not travel_state.get_travel_status():
-            driver_id = await get_last_driver_id()
-        else:
-            driver_id = current_driver.get_driver_id()
-
-        crash_model = CrashRequestModel(
-            datetime=datetime.now(),
-            impact_force=data['g_force'],
-            driver_id=driver_id
-        )
-
+    def send_crash_alert(self, sensor_data):
         try:
-            asyncio.create_task(register_crash_gpio(crash_model))
+            crash_request = CrashRequestModel(
+                kit_id=self.kit_id,
+                g_force_x=sensor_data['g_force_x'], g_force_y=sensor_data['g_force_y'],
+                g_force=sensor_data['g_force'],
+                datetime=datetime.now().isoformat()
+            )
+            asyncio.run(register_crash_gpio(crash_request))
         except Exception as e:
             logger.error(f"Error sending crash alert: {e}")
-
-    def MPU_Init(self):
-        logger.info("Initializing MPU6050...")
-        self.bus.write_byte_data(self.Device_Address, self.SMPLRT_DIV, 7)
-        self.bus.write_byte_data(self.Device_Address, self.PWR_MGMT_1, 1)
-        self.bus.write_byte_data(self.Device_Address, self.CONFIG, 0)
-        self.bus.write_byte_data(self.Device_Address, self.GYRO_CONFIG, 24)
-        self.bus.write_byte_data(self.Device_Address, self.INT_ENABLE, 1)
-        logger.info("MPU6050 initialized")
 
     async def get_current_coordinates_async(self):
         async with self.coordinates_lock:
@@ -346,6 +289,24 @@ class GpioService:
                 return self.current_coordinates
             else:
                 return "Coordinates not valid or sensor calibrating"
+
+    def MPU_Init(self):
+        self.bus.write_byte_data(self.Device_Address, 0x19, 7)
+        self.bus.write_byte_data(self.Device_Address, 0x6B, 1)
+        self.bus.write_byte_data(self.Device_Address, 0x1A, 0)
+        self.bus.write_byte_data(self.Device_Address, 0x1B, 24)
+        self.bus.write_byte_data(self.Device_Address, 0x38, 1)
+
+    def read_raw_data(self, addr):
+        high = self.bus.read_byte_data(self.Device_Address, addr)
+        low = self.bus.read_byte_data(self.Device_Address, addr + 1)
+        value = ((high << 8) | low)
+        if value > 32768:
+            value = value - 65536
+        return value
+
+    def millis(self):
+        return int(round(time.time() * 1000))
 
     # MPU6050 Registers and their addresses
     PWR_MGMT_1 = 0x6B
