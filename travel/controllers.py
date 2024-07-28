@@ -1,8 +1,6 @@
 import json
 from typing import Any, Optional
-from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException, status
-from fastapi.responses import JSONResponse
 from database.connector import DatabaseConnector
 from travel.models import TravelInitControllerModel, TravelFinishRequestModel, TravelEntityModel
 from services.rabbitmq_service import RabbitMQService
@@ -70,14 +68,20 @@ class TravelController:
             message = self.create_travel_message(travel)
             await self.rabbitmq_service.send_message(message, "travel.register")
 
-            await self.database.query_post_travel((
-                travel.driver_id,
-                travel.date_day,
-                travel.start_datetime,
-                travel.end_datetime,
-                travel.start_coordinates,
-                travel.end_coordinates,
-            ))
+            await self.database.query_post(
+                """
+                INSERT INTO travels (driver_id, date_day, start_datetime, end_datetime, start_coordinates, end_coordinates)
+                VALUES (%s, %s, %s, %s, ST_GeomFromText(%s), ST_GeomFromText(%s));
+                """,
+                (
+                    travel.driver_id,
+                    travel.date_day,
+                    travel.start_datetime,
+                    travel.end_datetime,
+                    travel.start_coordinates,
+                    travel.end_coordinates,
+                )
+            )
 
             return travel
         except Exception as e:
@@ -131,19 +135,18 @@ class TravelController:
     async def ensure_driver_exists(self, driver_id: str):
         result = await self.database.query_get(
             """
-            SELECT 1 FROM taxitracker.drivers WHERE id = %s
+            SELECT 1 FROM drivers WHERE id = %s
             """, (driver_id,)
         )
         if not result:
             kit_id = await self.get_kit_id()
             await self.database.query_post(
                 """
-                INSERT INTO taxitracker.drivers (id, kit_id)
+                INSERT INTO drivers (id, kit_id)
                 VALUES (%s, %s)
                 """, (driver_id, kit_id)
             )
 
-# Instanciar el controlador
 database = DatabaseConnector()
 rabbitmq_service = RabbitMQService()
 travel_controller = TravelController(database, rabbitmq_service)

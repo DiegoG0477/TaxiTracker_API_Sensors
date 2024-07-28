@@ -1,8 +1,7 @@
-from datetime import datetime
 from fastapi import APIRouter, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from TaxiTracker_API_Sensors.driving.controllers.controllers import register_driving
+from driving.controllers import driving_controller
 from driving.models import DrivingModel, DrivingRequestModel
 from services.gpio_service import gpio_service
 from utils.current_driver import current_driver
@@ -25,7 +24,7 @@ async def driving_register_api(request: DrivingRequestModel):
         return JSONResponse(status_code=status.HTTP_200_OK, content={"alert": "You must start a travel first"})
 
     try:
-        coordinates = await gpio_service.get_current_coordinates_async()
+        coordinates = await gpio_service.gps_service.get_current_coordinates_async()
         kit_id = await get_kit_id()
         driver_id = current_driver.get_driver_id()
         driving_details = DrivingModel(
@@ -43,7 +42,7 @@ async def driving_register_api(request: DrivingRequestModel):
             g_force_y=request.g_force_y
         )
         
-        driving = await register_driving(driving_details)
+        driving = await driving_controller.register_driving(driving_details)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(driving))
     except Exception as e:
         logger.error(f"Error in driving_register_api: {str(e)}")

@@ -11,7 +11,7 @@ async def get_location_api():
     """
     This API allow you to get the geolocation.
     """
-    coordinates = await gpio_service.get_current_coordinates_async()
+    coordinates = await gpio_service.gps_service.get_current_coordinates_async()
 
     if coordinates != "Coordinates not valid or sensor calibrating":
         lat = coordinates['latitude']

@@ -1,5 +1,4 @@
-# driving_controller.py
-
+import asyncio
 import json
 from fastapi import HTTPException, status
 from database.connector import DatabaseConnector
@@ -9,6 +8,7 @@ from utils.travel_state import travel_state
 from utils.current_driver import current_driver
 from travel.controllers import get_kit_id
 import logging
+from services.gpio_service import gpio_service  # Importar servicio GPIO
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,21 +22,18 @@ class DrivingController:
         try:
             message = self.create_driving_message(driving_model)
             await self.rabbitmq_service.send_message(message, "driving.tracking")
-
             await self.save_driving_data(driving_model)
-
             return "Driving data registered successfully"
         except Exception as e:
             logger.error(f"Error in register_driving: {e}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     async def register_driving_gpio(self, driving_model: DrivingRequestModel) -> str:
-        from services.gpio_service import gpio_service
         try:
             if not travel_state.get_travel_status():
                 return "Alert, you must start a travel first"
             
-            coordinates = await self.get_current_coordinates(gpio_service)
+            coordinates = await self.get_current_coordinates(gpio_service.gps_service)
             kit_id = await get_kit_id()
             driver_id = current_driver.get_driver_id()
 
@@ -81,8 +78,8 @@ class DrivingController:
             "g_force_y": driving_model.g_force_y,
         })
 
-    async def get_current_coordinates(self, gpio_service):
-        coordinates = await gpio_service.get_current_coordinates_async()
+    async def get_current_coordinates(self, gps_service):
+        coordinates = await gps_service.get_current_coordinates_async()
         if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
             return "..."
         return f"POINT({coordinates['longitude']} {coordinates['latitude']})"
@@ -90,7 +87,7 @@ class DrivingController:
     async def save_driving_data(self, driving_model: DrivingModel):
         await self.database.query_post(
             """
-            INSERT INTO acceleration (kit_id, driver_id, date, data_acceleration, data_desacceleration, inclination_angle, angular_velocity, g_force_x, g_force_y)
+            INSERT INTO acceleration (kit_id, driver_id, date, data_acceleration, data_deceleration, inclination_angle, angular_velocity, g_force_x, g_force_y)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
             """,
             (

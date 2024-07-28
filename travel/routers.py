@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import APIRouter, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from travel.controllers import travel_init, travel_finish
+from travel.controllers import travel_controller
 from travel.models import (
     TravelInitRequestModel,
     TravelFinishRequestModel,
@@ -24,7 +24,7 @@ async def travel_init_api(request: TravelInitRequestModel):
     This travel init API allow you to start a travel.
     """
     try:
-        coordinates = await gpio_service.get_current_coordinates_async()
+        coordinates = await gpio_service.gps_service.get_current_coordinates_async()
 
         if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
             coordinates = "..."
@@ -37,7 +37,7 @@ async def travel_init_api(request: TravelInitRequestModel):
             start_datetime=datetime.now().isoformat(),
             start_coordinates=coordinates
         )
-        travel = await travel_init(travel_details)
+        travel = await travel_controller.travel_init(travel_details)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(travel))
     except Exception as e:
         logger.error(f"Error in travel_init_api: {str(e)}")
@@ -49,7 +49,7 @@ async def asynctravel_finish_api():
     """
     This travel finish API allow you to finish a travel.
     """
-    coordinates = await gpio_service.get_current_coordinates_async()
+    coordinates = await gpio_service.gps_service.get_current_coordinates_async()
     if not coordinates or coordinates == 'Coordinates not valid or sensor calibrating':
         coordinates = "..."  # Valor predeterminado si las coordenadas no son válidas
     else:
@@ -60,5 +60,5 @@ async def asynctravel_finish_api():
         end_coordinates=coordinates
     )
 
-    travel = await travel_finish(travel_details)
+    travel = await travel_controller.travel_finish(travel_details)
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(travel))
