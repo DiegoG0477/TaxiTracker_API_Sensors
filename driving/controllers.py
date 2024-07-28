@@ -6,7 +6,7 @@ from driving.models import DrivingModel, DrivingRequestModel
 from services.rabbitmq_service import RabbitMQService
 from utils.travel_state import travel_state
 from utils.current_driver import current_driver
-from travel.controllers import get_kit_id
+from travel.controllers import travel_controller
 import logging
 from services.gpio_service import gpio_service  # Importar servicio GPIO
 
@@ -34,7 +34,7 @@ class DrivingController:
                 return "Alert, you must start a travel first"
             
             coordinates = await self.get_current_coordinates(gpio_service.gps_service)
-            kit_id = await get_kit_id()
+            kit_id = await travel_controller.get_kit_id()
             driver_id = current_driver.get_driver_id()
 
             message = self.create_driving_message(driving_model, kit_id, driver_id, coordinates)

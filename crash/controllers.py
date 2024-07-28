@@ -3,7 +3,7 @@ from fastapi import HTTPException, status
 from database.connector import DatabaseConnector
 from crash.models import CrashRequestModel, CrashModel
 from services.rabbitmq_service import RabbitMQService
-from travel.controllers import get_kit_id
+from travel.controllers import travel_controller
 import logging
 from services.gpio_service import gpio_service  # Importar servicio GPIO
 
@@ -41,7 +41,7 @@ class CrashController:
             else:
                 coordinates = f"POINT({coordinates['longitude']} {coordinates['latitude']})"
 
-            kit_id = await get_kit_id()
+            kit_id = await travel_controller.get_kit_id()
 
             driver = await self.get_driver_by_id(crash_model.driver_id)
             if not driver:

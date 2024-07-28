@@ -6,7 +6,7 @@ from driving.models import DrivingModel, DrivingRequestModel
 from services.gpio_service import gpio_service
 from utils.current_driver import current_driver
 from utils.travel_state import travel_state
-from travel.controllers import get_kit_id
+from travel.controllers import travel_controller
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +25,7 @@ async def driving_register_api(request: DrivingRequestModel):
 
     try:
         coordinates = await gpio_service.gps_service.get_current_coordinates_async()
-        kit_id = await get_kit_id()
+        kit_id = await travel_controller.get_kit_id()
         driver_id = current_driver.get_driver_id()
         driving_details = DrivingModel(
             kit_id=kit_id,
