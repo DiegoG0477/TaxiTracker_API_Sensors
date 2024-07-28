@@ -213,12 +213,15 @@ class GpioService:
             logger.error(f"Error starting integrated service: {e}")
 
     async def stop(self):
-        self.running = False
-        self.sensor_thread.join()
-        self.gps_thread.join()
-        self.gps_service.ser.close()
-        await self.rabbitmq_service.close_connection()
-        logger.info("GPIO service stopped")
+        try:
+            self.running = False
+            self.sensor_thread.join()
+            self.gps_thread.join()
+            self.gps_service.ser.close()
+            await self.rabbitmq_service.close_connection()
+            logger.info("GPIO service stopped")
+        except Exception as e:
+            logger.error(f"Error stopping GPIO service: {e}")
 
     async def process_and_send_data(self):
         gps_counter = 0
