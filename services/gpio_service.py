@@ -7,6 +7,7 @@ import threading
 import serial
 import pynmea2
 from gpiozero import InputDevice
+from statistics import mean, StatisticsError
 import smbus
 from database.connector import DatabaseConnector
 from services.rabbitmq_service import RabbitMQService
@@ -158,6 +159,27 @@ class SensorService:
             'g_force': self.calculate_g_force(Ax, Ay, Az)
         }
 
+    def calculate_averages(self):
+        if not self.data_buffer:
+            return None
+
+        try:
+            avg_data = {
+                "acceleration": mean([d['acc_x'] for d in self.data_buffer if d['acc_x'] > 0]) if [d['acc_x'] for d in self.data_buffer if d['acc_x'] > 0] else 0,
+                "deceleration": abs(mean([d['acc_x'] for d in self.data_buffer if d['acc_x'] < 0])) if [d['acc_x'] for d in self.data_buffer if d['acc_x'] < 0] else 0,
+                "vibrations": sum(d['vibrations'] for d in self.data_buffer),
+                "inclination_angle": mean([d['angle'] for d in self.data_buffer]) if [d['angle'] for d in self.data_buffer] else 0,
+                "angular_velocity": mean([d['gyro_x'] for d in self.data_buffer]) if [d['gyro_x'] for d in self.data_buffer] else 0,
+                "g_force_x": mean([d['g_force_x'] for d in self.data_buffer]) if [d['g_force_x'] for d in self.data_buffer] else 0,
+                "g_force_y": mean([d['g_force_y'] for d in self.data_buffer]) if [d['g_force_y'] for d in self.data_buffer] else 0,
+            }
+        except StatisticsError as e:
+            logger.error(f"Statistics error when calculating averages: {e}")
+            return None
+
+        return avg_data
+
+
     def calculate_g_force(self, x, y, z):
         return (x ** 2 + y ** 2 + z ** 2) ** 0.5
 
@@ -222,22 +244,6 @@ class GpioService:
             logger.info("GPIO service stopped")
         except Exception as e:
             logger.error(f"Error stopping GPIO service: {e}")
-
-    async def process_and_send_data(self):
-        gps_counter = 0
-        sensor_counter = 0
-        while self.running:
-            await asyncio.sleep(1)
-            gps_counter += 1
-            sensor_counter += 1
-
-            if gps_counter == 3:
-                await self.process_gps_data()
-                gps_counter = 0
-
-            if sensor_counter == 30:
-                await self.process_sensor_data()
-                sensor_counter = 0
 
     async def process_and_send_data(self):
         gps_counter = 0
