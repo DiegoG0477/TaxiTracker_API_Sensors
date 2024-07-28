@@ -1,9 +1,10 @@
 import asyncio
 import logging
 import time
-from datetime import datetime
 import json
 import threading
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 import serial
 import pynmea2
 from statistics import mean, StatisticsError
@@ -47,6 +48,7 @@ class GpioService:
         self.coordinates_valid = False
         self.ser = serial.Serial(gps_port, baudrate=gps_baudrate, timeout=gps_timeout)
         self.coordinates_lock = threading.Lock()
+        self.executor = ThreadPoolExecutor(max_workers=2)  # For blocking IO operations
 
     async def start(self):
         try:

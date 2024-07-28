@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import APIRouter, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from driving.controllers import register_driving
+from TaxiTracker_API_Sensors.driving.controllers.controllers import register_driving
 from driving.models import DrivingModel, DrivingRequestModel
 from services.gpio_service import gpio_service
 from utils.current_driver import current_driver
