@@ -316,6 +316,7 @@ class GpioService:
             g_force_y=data['g_force_y']
         )
         try:
+            print('Processing driving data', driving_model)
             await driving_controller.register_driving_gpio(driving_model)
         except Exception as e:
             logger.error(f"Error sending driving data: {e}")
