@@ -5,7 +5,6 @@ from crash.models import CrashRequestModel, CrashModel
 from services.rabbitmq_service import RabbitMQService
 from travel.controllers import travel_controller
 import logging
-from services.gpio_service import gpio_service  # Importar servicio GPIO
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,6 +32,7 @@ class CrashController:
         return "Crash data registered successfully"
 
     async def register_crash_gpio(self, crash_model: CrashRequestModel) -> str:
+        from services.gpio_service import gpio_service  # Importar servicio GPIO
         try:
             coordinates = await gpio_service.gps_service.get_current_coordinates_async()
 
