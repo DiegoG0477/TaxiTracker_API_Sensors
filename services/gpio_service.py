@@ -186,6 +186,19 @@ class GpioService:
         self.kit_id = None
         self.running = True
 
+    # async def start(self):
+    #     try:
+    #         self.sensor_thread = threading.Thread(target=self.sensor_service.read_sensors_loop, args=(self.running,))
+    #         self.sensor_thread.start()
+    #         self.gps_thread = threading.Thread(target=self.gps_service.read_gps_data, args=(self.running,))
+    #         self.gps_thread.start()
+    #         await self.rabbitmq_service.connect()
+    #         asyncio.create_task(self.process_and_send_data())
+    #         self.kit_id = await get_kit_id()
+    #         logger.info("GPIO service started")
+    #     except Exception as e:
+    #         logger.error(f"Error starting integrated service: {e}")
+
     async def start(self):
         try:
             self.sensor_thread = threading.Thread(target=self.sensor_service.read_sensors_loop, args=(self.running,))

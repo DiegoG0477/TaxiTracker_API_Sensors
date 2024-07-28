@@ -9,7 +9,7 @@ from services.gpio_service import gpio_service
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Starting GPIO service")
-    asyncio.run(gpio_service.start())
+    await gpio_service.start()
     yield
     await gpio_service.stop()
 
