@@ -236,9 +236,26 @@ class GpioService:
                 await self.process_sensor_data()
                 sensor_counter = 0
 
+    async def process_and_send_data(self):
+        gps_counter = 0
+        sensor_counter = 0
+        while self.running:
+            await asyncio.sleep(1)
+            gps_counter += 1
+            sensor_counter += 1
+
+            if gps_counter == 3:
+                await self.process_gps_data()
+                gps_counter = 0
+
+            if sensor_counter == 30:
+                await self.process_sensor_data()
+                sensor_counter = 0
+
     async def process_gps_data(self):
         try:
             coordinates = await self.gps_service.get_current_coordinates_async()
+            coordinates_str = "..."  # Valor predeterminado para coordinates_str
             if coordinates != "Coordinates not valid or sensor calibrating":
                 lat = coordinates['latitude']
                 lon = coordinates['longitude']
@@ -267,7 +284,7 @@ class GpioService:
                     "kit_id": self.kit_id,
                     "driver_id": driver_id,
                     "datetime": datetime.now().isoformat(),
-                    "coordinates": "..."
+                    "coordinates": coordinates_str
                 }), "geolocation.status")
         except Exception as e:
             logger.error(f"Error processing GPS data: {e}")
