@@ -8,7 +8,6 @@ from utils.travel_state import travel_state
 from utils.current_driver import current_driver
 from travel.controllers import travel_controller
 import logging
-from services.gpio_service import gpio_service  # Importar servicio GPIO
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,6 +28,7 @@ class DrivingController:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     async def register_driving_gpio(self, driving_model: DrivingRequestModel) -> str:
+        from services.gpio_service import gpio_service
         try:
             if not travel_state.get_travel_status():
                 return "Alert, you must start a travel first"
