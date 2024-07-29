@@ -68,11 +68,11 @@ class I2CService:
         return 0
 
 class GPSService:
-    def __init__(self, gps_port="/dev/ttyACM0", gps_baudrate=115200, gps_timeout=0.5):
+    def __init__(self, gps_port="/dev/ttyACM0", gps_baudrate=115200, gps_timeout=1):
         self.ser = serial.Serial(gps_port, baudrate=gps_baudrate, timeout=gps_timeout)
         self.coordinates = {'latitude': 0.0, 'longitude': 0.0}
         self.coordinates_valid = False
-        self.coordinates_lock = asyncio.Lock()
+        self.coordinates_lock = threading.Lock()
 
     def read_gps_data(self, running):
         while running:
@@ -95,8 +95,9 @@ class GPSService:
             self.coordinates = new_coordinates
 
     async def get_current_coordinates_async(self):
-        async with self.coordinates_lock:
-            return self.coordinates if self.coordinates_valid else "Coordinates not valid or sensor calibrating"
+        async with asyncio.Lock():
+            with self.coordinates_lock:
+                return self.coordinates if self.coordinates_valid else "Coordinates not valid or sensor calibrating"
 
 class SensorService:
     G_FORCE_THRESHOLD = 3.5
@@ -207,19 +208,6 @@ class GpioService:
         self.database = DatabaseConnector()
         self.kit_id = None
         self.running = True
-
-    # async def start(self):
-    #     try:
-    #         self.sensor_thread = threading.Thread(target=self.sensor_service.read_sensors_loop, args=(self.running,))
-    #         self.sensor_thread.start()
-    #         self.gps_thread = threading.Thread(target=self.gps_service.read_gps_data, args=(self.running,))
-    #         self.gps_thread.start()
-    #         await self.rabbitmq_service.connect()
-    #         asyncio.create_task(self.process_and_send_data())
-    #         self.kit_id = await get_kit_id()
-    #         logger.info("GPIO service started")
-    #     except Exception as e:
-    #         logger.error(f"Error starting integrated service: {e}")
 
     async def start(self):
         try:
