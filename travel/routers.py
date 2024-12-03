@@ -44,7 +44,7 @@ async def travel_init_api(request: TravelInitRequestModel):
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": str(e)})
 
 
-@router.post("/travels/finish", response_model=TravelEntityModel)
+@router.post("/travels/finish", response_model=dict)
 async def asynctravel_finish_api():
     """
     This travel finish API allow you to finish a travel.
