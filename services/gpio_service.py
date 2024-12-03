@@ -68,7 +68,7 @@ class I2CService:
         return 0
 
 class GPSService:
-    def __init__(self, gps_port="/dev/ttyACM0", gps_baudrate=115200, gps_timeout=1):
+    def __init__(self, gps_port="/dev/ttyS0", gps_baudrate=115200, gps_timeout=1):
         self.ser = serial.Serial(gps_port, baudrate=gps_baudrate, timeout=gps_timeout)
         self.coordinates = {'latitude': 0.0, 'longitude': 0.0}
         self.coordinates_valid = False
