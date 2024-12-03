@@ -27,4 +27,4 @@ class TravelEntityModel(BaseModel):
     start_datetime: datetime
     start_coordinates: Optional[str]  # Cambiado a Optional
     end_datetime: datetime
-    end_coordinates: Optional[str]  # Cambiado a Optional
+    end_coordinates: Optional[str]  # Cambiado a Optionals

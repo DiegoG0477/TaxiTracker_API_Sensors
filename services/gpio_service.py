@@ -97,7 +97,11 @@ class GPSService:
     async def get_current_coordinates_async(self):
         async with asyncio.Lock():
             with self.coordinates_lock:
-                return self.coordinates if self.coordinates_valid else "Coordinates not valid or sensor calibrating"
+                if self.coordinates_valid:
+                    return self.coordinates
+                else:
+                    # Valor predeterminado si las coordenadas no son válidas
+                    return {'latitude': 16.73, 'longitude': -93.08}
 
 class SensorService:
     G_FORCE_THRESHOLD = 3.5
@@ -121,33 +125,68 @@ class SensorService:
             time.sleep(1)
 
     def read_sensors(self):
-        acc_x = self.i2c_service.read_raw_data(0x3B)
-        acc_y = self.i2c_service.read_raw_data(0x3D)
-        acc_z = self.i2c_service.read_raw_data(0x3F)
-        gyro_x = self.i2c_service.read_raw_data(0x43)
-        gyro_y = self.i2c_service.read_raw_data(0x45)
-        gyro_z = self.i2c_service.read_raw_data(0x47)
+        try:
+            # Intentar leer los datos de los sensores I2C
+            acc_x = self.i2c_service.read_raw_data(0x3B)
+            acc_y = self.i2c_service.read_raw_data(0x3D)
+            acc_z = self.i2c_service.read_raw_data(0x3F)
+            gyro_x = self.i2c_service.read_raw_data(0x43)
+            gyro_y = self.i2c_service.read_raw_data(0x45)
+            gyro_z = self.i2c_service.read_raw_data(0x47)
 
-        Ax = round(acc_x / 16384.0, 2)
-        Ay = round(acc_y / 16384.0, 2)
-        Az = round(acc_z / 16384.0, 2)
-        Axms = round(Ax * 9.81, 2)
-        Ayms = round(Ay * 9.81, 2)
-        Azms = round(Az * 9.81, 2)
-        Gx = round(gyro_x / 131.0, 2)
-        Gy = round(gyro_y / 131.0, 2)
-        Gz = round(gyro_z / 131.0, 2)
+            # Procesar datos de aceleración y giroscopio
+            Ax = round(acc_x / 16384.0, 2)
+            Ay = round(acc_y / 16384.0, 2)
+            Az = round(acc_z / 16384.0, 2)
+            Axms = round(Ax * 9.81, 2)
+            Ayms = round(Ay * 9.81, 2)
+            Azms = round(Az * 9.81, 2)
+            Gx = round(gyro_x / 131.0, 2)
+            Gy = round(gyro_y / 131.0, 2)
+            Gz = round(gyro_z / 131.0, 2)
 
-        if self.vibration_sw420.is_active:
-            self.vibrations += 1
-        if self.shock_ky031.is_active:
-            current_time = self.millis()
-            if current_time - self.last_shock_time > self.DEBOUNCE_TIME:
-                self.shocks += 1
-                self.last_shock_time = current_time
+        except Exception as e:
+            # En caso de error, usar valores predeterminados
+            logger.error(f"Error reading I2C sensors: {e}")
+            Axms, Ayms, Azms = 0.0, 0.0, 0.0
+            Gx, Gy, Gz = 0.0, 0.0, 0.0
 
-        angle = (Ay - 1) * 180 / (-2) + 0
-        angle = int(angle)
+        try:
+            if self.vibration_sw420.is_active:
+                self.vibrations += 1
+            if self.shock_ky031.is_active:
+                current_time = self.millis()
+                if current_time - self.last_shock_time > self.DEBOUNCE_TIME:
+                    self.shocks += 1
+                    self.last_shock_time = current_time
+        except Exception as e:
+            logger.error(f"Error reading GPIO sensors: {e}")
+            self.vibrations = 0
+            self.shocks = 0
+
+        
+        try:
+            if self.vibration_sw420.is_active:
+                self.vibrations += 1
+            if self.shock_ky031.is_active:
+                current_time = self.millis()
+                if current_time - self.last_shock_time > self.DEBOUNCE_TIME:
+                    self.shocks += 1
+                    self.last_shock_time = current_time
+        except Exception as e:
+            logger.error(f"Error reading GPIO sensors: {e}")
+            self.vibrations = 0
+            self.shocks = 0
+
+        try:
+            angle = (Ay - 1) * 180 / (-2) + 0
+            angle = int(angle)
+            g_force = self.calculate_g_force(Ax, Ay, Az)
+        except Exception as e:
+            logger.error(f"Error calculating sensor values: {e}")
+            angle = 0
+            g_force = 0.0
+
 
         return {
             'acc_x': Axms, 'acc_y': Ayms, 'acc_z': Azms,
@@ -157,7 +196,7 @@ class SensorService:
             'shocks': self.shocks,
             'g_force_x': Ax,
             'g_force_y': Ay,
-            'g_force': self.calculate_g_force(Ax, Ay, Az)
+            'g_force': g_force
         }
 
     def calculate_averages(self):
@@ -179,7 +218,6 @@ class SensorService:
             return None
 
         return avg_data
-
 
     def calculate_g_force(self, x, y, z):
         return (x ** 2 + y ** 2 + z ** 2) ** 0.5
