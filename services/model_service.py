@@ -116,10 +116,10 @@ class ModelGenerator:
                         model = LogisticRegression()
                         model.fit(X_train, y_train)
 
-                    print(model)
-
                     # Guardar el modelo en el buffer
                     model_buffer[(hour, quadrant)] = model
+
+            print(model_buffer)
 
         except Exception as e:
             logger.error(f"Error processing models: {e}")
