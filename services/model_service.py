@@ -21,7 +21,7 @@ class ModelGenerator(threading.Thread):
         super().__init__()
         self.interval = interval
         self.running = True
-        self.db_connector = db_connector
+        self.db_connector = DatabaseConnector()
 
     def stop(self):
         self.running = False

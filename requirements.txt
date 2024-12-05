@@ -19,3 +19,4 @@ charset-normalizer==3.3.2
 urllib3==2.2.2
 statistics==1.0.3.5
 scikit-learn
+pandas
