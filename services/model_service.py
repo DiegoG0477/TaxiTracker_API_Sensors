@@ -5,6 +5,7 @@ import pandas as pd
 from sklearn.cluster import DBSCAN
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 import logging
 from database.connector import DatabaseConnector
@@ -83,7 +84,9 @@ class ModelGenerator:
                 for quadrant in hourly_data['quadrant'].unique():
                     quadrant_data = hourly_data[hourly_data['quadrant'] == quadrant]
                     coords = quadrant_data[['start_latitude', 'start_longitude']].values
-                    db = DBSCAN(eps=0.005, min_samples=10).fit(coords)
+                    scaler = StandardScaler()
+                    coords_scaled = scaler.fit_transform(coords)
+                    db = DBSCAN(eps=0.01, min_samples=5).fit(coords)  # Valores ajustados
                     quadrant_data['zone'] = db.labels_
 
                     # Eliminar outliers
