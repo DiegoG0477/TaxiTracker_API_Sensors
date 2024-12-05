@@ -89,7 +89,7 @@ class ModelGenerator:
                     coords = quadrant_data[['start_latitude', 'start_longitude']].values
                     scaler = StandardScaler()
                     coords_scaled = scaler.fit_transform(coords)
-                    db = DBSCAN(eps=0.001, min_samples=2).fit(coords)  # Valores ajustados
+                    db = DBSCAN(eps=0.01, min_samples=2).fit(coords_scaled)  # Valores ajustados
                     quadrant_data['zone'] = db.labels_
 
                     # Eliminar outliers
