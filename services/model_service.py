@@ -15,6 +15,14 @@ logger = logging.getLogger(__name__)
 # Buffer para almacenar los modelos generados
 model_buffer = {}
 
+class ConstantModel:
+    def __init__(self, constant_value):
+        self.constant_value = constant_value
+
+    def predict(self, X):
+        # Devuelve una lista con el mismo valor constante para cada entrada
+        return [self.constant_value] * len(X)
+
 # Hilo productor: Genera modelos cada 3 minutos
 class ModelGenerator:
     def __init__(self, db_connector: DatabaseConnector, stop_event: threading.Event, interval=180):
@@ -95,11 +103,18 @@ class ModelGenerator:
                     quadrant_data['zone'] = db.labels_
 
                     # Manejo de un único clúster o outliers
+                    # if len(quadrant_data['zone'].unique()) < 2:
+                    #     logger.info(f"Only one cluster detected for hour {hour}, quadrant {quadrant}. Using mean prediction.")
+                    #     mean_value = quadrant_data['distance_mts'].mean()  # Ajustar según el objetivo
+                    #     model_buffer[(hour, quadrant)] = lambda X: [mean_value] * len(X)
+                    #     continue
+
                     if len(quadrant_data['zone'].unique()) < 2:
                         logger.info(f"Only one cluster detected for hour {hour}, quadrant {quadrant}. Using mean prediction.")
                         mean_value = quadrant_data['distance_mts'].mean()  # Ajustar según el objetivo
-                        model_buffer[(hour, quadrant)] = lambda X: [mean_value] * len(X)
+                        model_buffer[(hour, quadrant)] = ConstantModel(mean_value)  # Usar la clase
                         continue
+
 
                     # Preparar datos para el modelo de predicción
                     X = quadrant_data[['hour', 'day_of_week', 'start_latitude', 'start_longitude']]
