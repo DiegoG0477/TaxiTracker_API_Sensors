@@ -91,8 +91,11 @@ class ModelGenerator:
                     coords_scaled = scaler.fit_transform(coords)
 
                     # Clustering con DBSCAN
-                    db = DBSCAN(eps=0.05, min_samples=1).fit(coords_scaled)
+                    #db = DBSCAN(eps=0.05, min_samples=1).fit(coords_scaled)
+                    db = DBSCAN(eps=0.1, min_samples=2).fit(coords_scaled)
                     quadrant_data['zone'] = db.labels_
+
+                    logger.info(f"DBSCAN detected {len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)} clusters for hour {hour}, quadrant {quadrant}.")
 
                     # Reemplazar outliers (-1) con una zona específica (ej. 0)
                     quadrant_data['zone'] = quadrant_data['zone'].replace(-1, 0)
@@ -106,10 +109,15 @@ class ModelGenerator:
                     y = quadrant_data['zone']
 
                     # Si solo hay una clase, usar DummyClassifier
+                    # if len(set(y)) < 2:
+                    #     logger.info(f"Training DummyClassifier for hour {hour}, quadrant {quadrant}. Only one class: {set(y)}.")
+                    #     model = DummyClassifier(strategy="constant", constant=y.iloc[0])
+                    #     model.fit(X, y)
+
                     if len(set(y)) < 2:
-                        logger.info(f"Training DummyClassifier for hour {hour}, quadrant {quadrant}. Only one class: {set(y)}.")
-                        model = DummyClassifier(strategy="constant", constant=y.iloc[0])
-                        model.fit(X, y)
+                        logger.warning(f"Skipping model generation for hour {hour}, quadrant {quadrant}. Not enough data diversity.")
+                        continue
+
                     else:
                         # Dividir datos para entrenamiento y validación
                         X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2, random_state=42)
