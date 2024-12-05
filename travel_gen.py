@@ -81,7 +81,7 @@ start_coordinates = (16.752829568714006, -93.11412099938246)  # Coordenada inici
 range_lat = 0.01  # Rango máximo de latitud (1 km aproximadamente)
 range_lon = 0.04  # Rango máximo de longitud (4 km aproximadamente)
 driver_ids = ["driver_1", "driver_2", "driver_3", "driver_4", "driver_5"]  # IDs de conductores
-num_travels = 50  # Número de viajes a generar
+num_travels = 700  # Número de viajes a generar
 
 # Generar sentencias
 insert_statements = generate_insert_statements(num_travels, start_coordinates, range_lat, range_lon, driver_ids)

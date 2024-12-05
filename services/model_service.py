@@ -90,19 +90,37 @@ class ModelGenerator:
                     quadrant_data = quadrant_data[quadrant_data['zone'] != -1]
 
                     if quadrant_data.empty:
+                        logger.warning(f"No clusters found for hour {hour}, quadrant {quadrant}.")
+                        continue
+
+                    # Validar número de clústeres
+                    if len(quadrant_data['zone'].unique()) < 2:
+                        logger.warning(f"Skipping training for hour {hour}, quadrant {quadrant}. Only one cluster found.")
                         continue
 
                     # Preparar datos
                     X = quadrant_data[['hour', 'day_of_week', 'start_latitude', 'start_longitude']]
                     y = quadrant_data['zone']
+
+                    # Validar clases en 'y'
+                    unique_classes = len(set(y))
+                    if unique_classes < 2:
+                        logger.warning(f"Skipping training for hour {hour}, quadrant {quadrant}. Only one class in y.")
+                        continue
+
                     X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2, random_state=42)
+
+                    # Validar clases en 'y_train'
+                    unique_train_classes = len(set(y_train))
+                    if unique_train_classes < 2:
+                        logger.warning(f"Skipping training for hour {hour}, quadrant {quadrant}. Only one class in y_train.")
+                        continue
 
                     # Entrenar modelo
                     model = LogisticRegression()
                     model.fit(X_train, y_train)
 
-                    # Guardar el modelo en el buffer
+                    # Guardar modelo
                     model_buffer[(hour, quadrant)] = model
-
         except Exception as e:
             logger.error(f"Error processing models: {e}")
