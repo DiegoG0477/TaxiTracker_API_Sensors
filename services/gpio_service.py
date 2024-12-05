@@ -54,7 +54,7 @@ class I2CService:
     MAX_RETRIES = 6
     RETRY_DELAY = 0.1
 
-    def __init__(self, device_address=0x69):
+    def __init__(self, device_address=0x68):
         self.device_address = device_address
         self.bus = None
         self.initialize_i2c()
