@@ -60,8 +60,11 @@ class ModelGenerator:
             df['day_of_week'] = pd.to_datetime(df['start_hour']).dt.dayofweek
 
             # Calcular cuadrantes
-            latitude_mid = df['start_latitude'].mean()
-            longitude_mid = df['start_longitude'].mean()
+            #latitude_mid = df['start_latitude'].mean()
+            #longitude_mid = df['start_longitude'].mean()
+
+            latitude_mid = 16.752143
+            longitude_mid = -93.106897
 
             def assign_quadrant(row):
                 if row['start_latitude'] >= latitude_mid and row['start_longitude'] >= longitude_mid:
@@ -78,7 +81,7 @@ class ModelGenerator:
             # Generar modelos por hora y cuadrante
             for hour in range(24):
                 hourly_data = df[df['hour'] == hour]
-                if len(hourly_data) < 3:
+                if len(hourly_data) < 1:
                     continue
 
                 for quadrant in hourly_data['quadrant'].unique():
@@ -86,7 +89,7 @@ class ModelGenerator:
                     coords = quadrant_data[['start_latitude', 'start_longitude']].values
                     scaler = StandardScaler()
                     coords_scaled = scaler.fit_transform(coords)
-                    db = DBSCAN(eps=0.01, min_samples=5).fit(coords)  # Valores ajustados
+                    db = DBSCAN(eps=0.001, min_samples=2).fit(coords)  # Valores ajustados
                     quadrant_data['zone'] = db.labels_
 
                     # Eliminar outliers
