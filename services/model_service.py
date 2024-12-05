@@ -54,8 +54,10 @@ class ModelGenerator:
                 return
 
             # Procesar columnas necesarias
-            df['start_latitude'] = df['start_coordinates'].apply(lambda x: x[1])
-            df['start_longitude'] = df['start_coordinates'].apply(lambda x: x[0])
+            #df['start_latitude'] = df['start_coordinates'].apply(lambda x: x[1])
+            #df['start_longitude'] = df['start_coordinates'].apply(lambda x: x[0])
+            df['start_latitude'] = df['start_coordinates'].apply(lambda x: x[0])
+            df['start_longitude'] = df['start_coordinates'].apply(lambda x: x[1])
             df['hour'] = pd.to_datetime(df['start_hour']).dt.hour
             df['day_of_week'] = pd.to_datetime(df['start_hour']).dt.dayofweek
 
