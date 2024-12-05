@@ -193,19 +193,59 @@ class GpioService:
 
     async def process_gps_data(self, gps_data):
         try:
-            message = {
+            driver_id = await get_last_driver_id() if not travel_state.get_travel_status() else current_driver.get_driver_id()
+            coordinates = gps_data
+            lat, lon = coordinates["latitude"], coordinates["longitude"]
+            coordinates_str = f"{lat},{lon}"
+
+            # Crear el mensaje
+            message = json.dumps({
+                "kit_id": await get_kit_id(),
+                "driver_id": driver_id,
                 "datetime": datetime.now().isoformat(),
-                "coordinates": gps_data,
-            }
-            logger.info(f"Processed GPS data: {message}")
-            await self.rabbitmq_service.send_message(json.dumps(message), "geolocation.update")
+                "coordinates": coordinates_str,
+            })
+
+            # Enviar a RabbitMQ
+            await self.rabbitmq_service.send_message(message, "geolocation.update")
+            logger.info(f"GPS data sent to RabbitMQ: {message}")
+
+            # Guardar en la base de datos
+            point = f"POINT({lat} {lon})"
+            await self.database.query_post(
+                "INSERT INTO geolocation (coordinates, geo_time) VALUES (ST_GeomFromText(%s), %s)",
+                (point, datetime.now()),
+            )
+            logger.info("GPS data saved to database.")
         except Exception as e:
             logger.error(f"Error processing GPS data: {e}")
 
     async def process_sensor_data(self, sensor_data):
         try:
-            logger.info(f"Processed sensor data: {sensor_data}")
-            # Aquí puedes enviar los datos a RabbitMQ o la base de datos
+            driver_id = await get_last_driver_id() if not travel_state.get_travel_status() else current_driver.get_driver_id()
+            
+            # Crear modelo para RabbitMQ
+            driving_model = DrivingRequestModel(
+                datetime=datetime.now(),
+                acceleration=sensor_data.get("acc_x", 0),
+                deceleration=sensor_data.get("acc_y", 0),
+                vibrations=int(sensor_data.get("vibration", False)),
+                inclination_angle=0,
+                angular_velocity=0,
+                g_force_x=sensor_data.get("acc_x", 0),
+                g_force_y=sensor_data.get("acc_y", 0),
+            )
+
+            # Enviar a RabbitMQ
+            await self.rabbitmq_service.send_message(json.dumps(driving_model.dict()), "sensor.update")
+            logger.info(f"Sensor data sent to RabbitMQ: {driving_model.dict()}")
+
+            # Guardar en la base de datos
+            await self.database.query_post(
+                "INSERT INTO sensor_data (driver_id, acceleration, deceleration, vibrations, datetime) VALUES (%s, %s, %s, %s, %s)",
+                (driver_id, driving_model.acceleration, driving_model.deceleration, driving_model.vibrations, driving_model.datetime),
+            )
+            logger.info("Sensor data saved to database.")
         except Exception as e:
             logger.error(f"Error processing sensor data: {e}")
 
