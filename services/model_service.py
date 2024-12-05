@@ -1,13 +1,10 @@
 import threading
-import time
 import asyncio
 import pandas as pd
-from sklearn.dummy import DummyClassifier
 from sklearn.cluster import DBSCAN
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
-import numpy as np
 import logging
 from database.connector import DatabaseConnector
 
@@ -46,6 +43,7 @@ class ModelGenerator:
         FROM travels
         '''
         try:
+            # Cargar datos desde la base de datos
             results = await self.db_connector.query_get(query)
             df = pd.DataFrame(results)
 
@@ -56,13 +54,11 @@ class ModelGenerator:
             # Procesar columnas necesarias
             df['start_latitude'] = df['start_coordinates'].apply(lambda x: x[1])
             df['start_longitude'] = df['start_coordinates'].apply(lambda x: x[0])
-            #df['start_latitude'] = df['start_coordinates'].apply(lambda x: x[0])
-            #df['start_longitude'] = df['start_coordinates'].apply(lambda x: x[1])
             df['hour'] = pd.to_datetime(df['start_hour']).dt.hour
             df['day_of_week'] = pd.to_datetime(df['start_hour']).dt.dayofweek
 
-            latitude_mid = 16.752143
-            longitude_mid = -93.106897
+            latitude_mid = df['start_latitude'].mean()
+            longitude_mid = df['start_longitude'].mean()
 
             def assign_quadrant(row):
                 if row['start_latitude'] >= latitude_mid and row['start_longitude'] >= longitude_mid:
@@ -79,7 +75,8 @@ class ModelGenerator:
             # Generar modelos por hora y cuadrante
             for hour in range(24):
                 hourly_data = df[df['hour'] == hour]
-                if len(hourly_data) < 1:
+                if len(hourly_data) < 10:  # Filtrar horas con pocos datos
+                    logger.warning(f"Skipping hour {hour} due to insufficient data.")
                     continue
 
                 for quadrant in hourly_data['quadrant'].unique():
@@ -91,44 +88,37 @@ class ModelGenerator:
                     coords_scaled = scaler.fit_transform(coords)
 
                     # Clustering con DBSCAN
-                    #db = DBSCAN(eps=0.05, min_samples=1).fit(coords_scaled)
                     db = DBSCAN(eps=0.1, min_samples=2).fit(coords_scaled)
                     quadrant_data['zone'] = db.labels_
 
-                    logger.info(f"DBSCAN detected {len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)} clusters for hour {hour}, quadrant {quadrant}.")
+                    # Loguear cantidad de clústeres
+                    num_clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
+                    logger.info(f"DBSCAN detected {num_clusters} clusters for hour {hour}, quadrant {quadrant}.")
 
-                    # Reemplazar outliers (-1) con una zona específica (ej. 0)
-                    quadrant_data['zone'] = quadrant_data['zone'].replace(-1, 0)
+                    # Filtrar outliers (-1)
+                    quadrant_data = quadrant_data[quadrant_data['zone'] != -1]
 
-                    if quadrant_data.empty:
-                        logger.warning(f"No clusters found for hour {hour}, quadrant {quadrant}.")
+                    if quadrant_data.empty or len(quadrant_data['zone'].unique()) < 2:
+                        logger.warning(f"Skipping model generation for hour {hour}, quadrant {quadrant}. Not enough data diversity.")
                         continue
 
                     # Variables predictoras y objetivo
                     X = quadrant_data[['hour', 'day_of_week', 'start_latitude', 'start_longitude']]
                     y = quadrant_data['zone']
 
-                    # Si solo hay una clase, usar DummyClassifier
-                    # if len(set(y)) < 2:
-                    #     logger.info(f"Training DummyClassifier for hour {hour}, quadrant {quadrant}. Only one class: {set(y)}.")
-                    #     model = DummyClassifier(strategy="constant", constant=y.iloc[0])
-                    #     model.fit(X, y)
+                    # Dividir datos para entrenamiento y validación
+                    X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2, random_state=42)
 
-                    if len(set(y)) < 2:
-                        logger.warning(f"Skipping model generation for hour {hour}, quadrant {quadrant}. Not enough data diversity.")
-                        continue
-
-                    else:
-                        # Dividir datos para entrenamiento y validación
-                        X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2, random_state=42)
-                        model = LogisticRegression()
-                        model.fit(X_train, y_train)
+                    # Entrenar modelo de regresión logística
+                    model = LogisticRegression()
+                    model.fit(X_train, y_train)
 
                     # Guardar el modelo en el buffer
                     model_buffer[(hour, quadrant)] = model
 
-            print(df)
-            print(model_buffer)
+            # Loguear resultados finales
+            logger.info(f"Generated {len(model_buffer)} models successfully.")
+            logger.debug(f"Model buffer: {model_buffer.keys()}")
 
         except Exception as e:
             logger.error(f"Error processing models: {e}")
