@@ -11,7 +11,7 @@ async def lifespan(app: FastAPI):
     print("Starting GPIO service")
     await gpio_service.start()
     yield
-    asyncio.create_task(gpio_service.stop())
+    await gpio_service.stop()
 
 # Set API info
 app = FastAPI(
