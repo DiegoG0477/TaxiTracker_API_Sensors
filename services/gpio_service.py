@@ -228,14 +228,28 @@ class GpioService:
                 g_force_y=sensor_data.get("acc_y", 0),
             )
 
+            # Convertir el modelo a dict y serializar datetime a string
+            driving_model_dict = driving_model.dict()
+            driving_model_dict["datetime"] = driving_model.datetime.isoformat()
+
             # Enviar a RabbitMQ
-            await self.rabbitmq_service.send_message(json.dumps(driving_model.model_dump()), "sensor.update")
-            logger.info(f"Sensor data sent to RabbitMQ: {driving_model.model_dump()}")
+            await self.rabbitmq_service.send_message(json.dumps(driving_model_dict), "sensor.update")
+            logger.info(f"Sensor data sent to RabbitMQ: {driving_model_dict}")
 
             # Guardar en la base de datos
             await self.database.query_post(
-                "INSERT INTO acceleration (kit_id, driver_id, date, data_acceleration, data_desacceleration, vibrations) VALUES (%d, %s, %s, %s, %s, %s)",
-                (1, driver_id, driving_model.datetime, driving_model.acceleration, driving_model.deceleration, driving_model.vibrations),
+                """
+                INSERT INTO acceleration (kit_id, driver_id, date, data_acceleration, data_desacceleration, vibrations)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    1,  # kit_id
+                    driver_id,
+                    driving_model.datetime,  # Este datetime se inserta sin cambios
+                    driving_model.acceleration,
+                    driving_model.deceleration,
+                    driving_model.vibrations,
+                ),
             )
             
             logger.info("Sensor data saved to database.")
