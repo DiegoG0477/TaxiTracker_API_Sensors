@@ -51,14 +51,20 @@ class ModelGenerator:
                 logger.warning("No data retrieved from database.")
                 return
 
-            # Procesar columnas necesarias
+            # Convertir las coordenadas a formato adecuado
             df['start_latitude'] = df['start_coordinates'].apply(lambda x: x[1])
             df['start_longitude'] = df['start_coordinates'].apply(lambda x: x[0])
+            df['end_latitude'] = df['end_coordinates'].apply(lambda x: x[1])
+            df['end_longitude'] = df['end_coordinates'].apply(lambda x: x[0])
+
+            # Añadir columnas de hora y día de la semana
             df['hour'] = pd.to_datetime(df['start_hour']).dt.hour
             df['day_of_week'] = pd.to_datetime(df['start_hour']).dt.dayofweek
 
+            # Definir los límites de los cuadrantes
             latitude_mid = df['start_latitude'].mean()
             longitude_mid = df['start_longitude'].mean()
+
 
             def assign_quadrant(row):
                 if row['start_latitude'] >= latitude_mid and row['start_longitude'] >= longitude_mid:
@@ -72,44 +78,28 @@ class ModelGenerator:
 
             df['quadrant'] = df.apply(assign_quadrant, axis=1)
 
-            # Generar modelos por hora y cuadrante
             for hour in range(24):
                 hourly_data = df[df['hour'] == hour]
-                if len(hourly_data) < 10:  # Filtrar horas con pocos datos
-                    logger.warning(f"Skipping hour {hour} due to insufficient data.")
-                    continue
+                if len(hourly_data) < 10:
+                    continue  # Ignorar horas con pocos datos
 
                 for quadrant in hourly_data['quadrant'].unique():
                     quadrant_data = hourly_data[hourly_data['quadrant'] == quadrant]
                     coords = quadrant_data[['start_latitude', 'start_longitude']].values
-
-                    # Escalar coordenadas
-                    scaler = StandardScaler()
-                    coords_scaled = scaler.fit_transform(coords)
-
-                    # Clustering con DBSCAN
-                    db = DBSCAN(eps=0.1, min_samples=2).fit(coords_scaled)
+                    db = DBSCAN(eps=0.005, min_samples=10).fit(coords)
                     quadrant_data['zone'] = db.labels_
 
-                    # Loguear cantidad de clústeres
-                    num_clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
-                    logger.info(f"DBSCAN detected {num_clusters} clusters for hour {hour}, quadrant {quadrant}.")
-
-                    # Filtrar outliers (-1)
+                    # Eliminar outliers
                     quadrant_data = quadrant_data[quadrant_data['zone'] != -1]
 
-                    if quadrant_data.empty or len(quadrant_data['zone'].unique()) < 2:
-                        logger.warning(f"Skipping model generation for hour {hour}, quadrant {quadrant}. Not enough data diversity.")
-                        continue
-
-                    # Variables predictoras y objetivo
+                    # Preparar datos para el modelo de predicción
                     X = quadrant_data[['hour', 'day_of_week', 'start_latitude', 'start_longitude']]
                     y = quadrant_data['zone']
 
-                    # Dividir datos para entrenamiento y validación
-                    X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2, random_state=42)
+                    # Dividir los datos en entrenamiento y prueba
+                    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-                    # Entrenar modelo de regresión logística
+                    # Entrenar un modelo de regresión logística
                     model = LogisticRegression()
                     model.fit(X_train, y_train)
 
