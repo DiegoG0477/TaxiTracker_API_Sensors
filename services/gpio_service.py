@@ -111,7 +111,7 @@ class GPSService:
             return {"latitude": self.coordinates["latitude"], "longitude": self.coordinates["longitude"]}
         except (serial.SerialException, pynmea2.ParseError, UnicodeDecodeError) as e:
             logger.error(f"Error reading GPS data: {e}")
-            return {"latitude": 0.0, "longitude": 0.0}
+            return {"latitude": 16.73, "longitude": -93.08}
 
     def update_coordinates(self, new_coordinates):
         with self.coordinates_lock:
@@ -120,7 +120,7 @@ class GPSService:
     async def get_current_coordinates_async(self):
         async with asyncio.Lock():
             with self.coordinates_lock:
-                return self.coordinates if self.coordinates_valid else {"latitude": 0.0, "longitude": 0.0}
+                return self.coordinates if self.coordinates_valid else {"latitude": 16.73, "longitude": -93.08}
 
 
 ### Sensor Service ###
@@ -209,14 +209,6 @@ class GpioService:
             # Enviar a RabbitMQ
             await self.rabbitmq_service.send_message(message, "geolocation.update")
             logger.info(f"GPS data sent to RabbitMQ: {message}")
-
-            # Guardar en la base de datos
-            point = f"POINT({lat} {lon})"
-            await self.database.query_post(
-                "INSERT INTO geolocation (coordinates, geo_time) VALUES (ST_GeomFromText(%s), %s)",
-                (point, datetime.now()),
-            )
-            logger.info("GPS data saved to database.")
         except Exception as e:
             logger.error(f"Error processing GPS data: {e}")
 
@@ -237,14 +229,15 @@ class GpioService:
             )
 
             # Enviar a RabbitMQ
-            await self.rabbitmq_service.send_message(json.dumps(driving_model.dict()), "sensor.update")
-            logger.info(f"Sensor data sent to RabbitMQ: {driving_model.dict()}")
+            await self.rabbitmq_service.send_message(json.dumps(driving_model.model_dump()), "sensor.update")
+            logger.info(f"Sensor data sent to RabbitMQ: {driving_model.model_dump()}")
 
             # Guardar en la base de datos
             await self.database.query_post(
-                "INSERT INTO sensor_data (driver_id, acceleration, deceleration, vibrations, datetime) VALUES (%s, %s, %s, %s, %s)",
-                (driver_id, driving_model.acceleration, driving_model.deceleration, driving_model.vibrations, driving_model.datetime),
+                "INSERT INTO acceleration (kit_id, driver_id, date, data_acceleration, data_desacceleration, vibrations) VALUES (%d, %s, %s, %s, %s, %s)",
+                (1, driver_id, driving_model.datetime, driving_model.acceleration, driving_model.deceleration, driving_model.vibrations),
             )
+            
             logger.info("Sensor data saved to database.")
         except Exception as e:
             logger.error(f"Error processing sensor data: {e}")
