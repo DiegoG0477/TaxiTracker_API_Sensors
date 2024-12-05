@@ -77,7 +77,7 @@ class ModelGenerator:
             # Generar modelos por hora y cuadrante
             for hour in range(24):
                 hourly_data = df[df['hour'] == hour]
-                if len(hourly_data) < 10:
+                if len(hourly_data) < 3:
                     continue
 
                 for quadrant in hourly_data['quadrant'].unique():
