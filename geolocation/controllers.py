@@ -99,14 +99,16 @@ async def predict_heatmap(hour: int, day_of_week: int, latitude: float, longitud
         latitude_mid = 16.75  # Ajustar según datos
         longitude_mid = -93.1167  # Ajustar según datos
 
-        if latitude >= latitude_mid and longitude >= longitude_mid:
-            quadrant = 'norte_oriente'
-        elif latitude >= latitude_mid and longitude < longitude_mid:
-            quadrant = 'norte_poniente'
-        elif latitude < latitude_mid and longitude >= longitude_mid:
-            quadrant = 'sur_oriente'
-        else:
-            quadrant = 'sur_poniente'
+        # if latitude >= latitude_mid and longitude >= longitude_mid:
+        #     quadrant = 'norte_oriente'
+        # elif latitude >= latitude_mid and longitude < longitude_mid:
+        #     quadrant = 'norte_poniente'
+        # elif latitude < latitude_mid and longitude >= longitude_mid:
+        #     quadrant = 'sur_oriente'
+        # else:
+        #     quadrant = 'sur_poniente'
+
+        quadrant = "norte_oriente"
 
         # Obtener modelo del buffer
         model_key = (hour, quadrant)
