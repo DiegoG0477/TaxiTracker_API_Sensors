@@ -31,10 +31,19 @@ class ModelGenerator(threading.Thread):
         while self.running:
             try:
                 logger.info("Generating models...")
-                asyncio.run(self.generate_models())  # Ejecutar la lógica asíncrona
+                
+                # Crear un nuevo bucle de eventos para ejecutar la tarea asincrónica
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self.generate_models())
+                
                 logger.info("Models generated successfully.")
             except Exception as e:
                 logger.error(f"Error generating models: {e}")
+            finally:
+                # Cerrar el bucle de eventos después de usarlo
+                asyncio.get_event_loop().close()
+
             time.sleep(self.interval)
 
     async def generate_models(self):
