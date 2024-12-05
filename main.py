@@ -7,20 +7,29 @@ from geolocation.routers import router as geolocation_router
 from services.gpio_service import gpio_service
 from services.model_service import ModelGenerator
 from database.connector import DatabaseConnector
+import threading
 
 db_connector = DatabaseConnector()
+stop_event = threading.Event()  # Evento para sincronización de hilos
 
-model_generator = ModelGenerator(db_connector)
+model_generator = ModelGenerator(db_connector, stop_event)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Starting GPIO service")
-    await gpio_service.start()
-    print("Starting heatmap service")
-    model_generator.start()
+    print("Starting GPIO service and Heatmap service")
+    
+    # Inicia ambos servicios concurrentemente
+    gpio_task = asyncio.create_task(gpio_service.start(stop_event))
+    model_task = asyncio.create_task(model_generator.run_async())
+
     yield
+
+    # Detiene ambos servicios
+    stop_event.set()
     await gpio_service.stop()
-    model_generator.stop()
+    await model_generator.stop_async()
+    await gpio_task
+    await model_task
 
 # Set API info
 app = FastAPI(
@@ -36,11 +45,7 @@ origins = [
     "*"
 ]
 
-"""
-User APIs
-Provides user CRUD APIs.
-"""
-
+# User APIs
 app.include_router(travel_router)
 app.include_router(kit_router)
 app.include_router(geolocation_router)

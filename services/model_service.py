@@ -17,34 +17,26 @@ logger = logging.getLogger(__name__)
 model_buffer = {}
 
 # Hilo productor: Genera modelos cada 3 minutos
-class ModelGenerator(threading.Thread):
-    def __init__(self, db_connector: DatabaseConnector, interval=180):
-        super().__init__()
+class ModelGenerator:
+    def __init__(self, db_connector: DatabaseConnector, stop_event: threading.Event, interval=180):
         self.interval = interval
-        self.running = True
-        self.db_connector = db_connector
-
-    def stop(self):
         self.running = False
+        self.db_connector = db_connector
+        self.stop_event = stop_event
 
-    def run(self):
-        while self.running:
+    async def run_async(self):
+        self.running = True
+        while not self.stop_event.is_set():
             try:
                 logger.info("Generating models...")
-                
-                # Crear un nuevo bucle de eventos para ejecutar la tarea asincrónica
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(self.generate_models())
-                
+                await self.generate_models()  # Lógica asincrónica
                 logger.info("Models generated successfully.")
             except Exception as e:
                 logger.error(f"Error generating models: {e}")
-            finally:
-                # Cerrar el bucle de eventos después de usarlo
-                asyncio.get_event_loop().close()
+            await asyncio.sleep(self.interval)
 
-            time.sleep(self.interval)
+    async def stop_async(self):
+        self.running = False
 
     async def generate_models(self):
         # Obtener datos desde la base de datos

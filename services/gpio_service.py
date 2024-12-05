@@ -158,15 +158,19 @@ class GpioService:
         self.rabbitmq_service = RabbitMQService()
         self.database = DatabaseConnector()
         self.threads = []
-        self.running = True
+        self.running = False
 
-    async def start(self):
+    async def start(self, stop_event: threading.Event):
         try:
+            self.running = True
+            # Inicia los hilos
             self.threads.append(SensorThread("gps", self.gps_service.read_gps_data, self.data_queue))
             self.threads.append(SensorThread("sensors", self.sensor_service.read_sensors, self.data_queue))
             for thread in self.threads:
                 thread.start()
-            asyncio.create_task(self.process_data())
+
+            # Procesa los datos en el bucle asyncio
+            await asyncio.to_thread(self.process_data, stop_event)
             logger.info("GPIO service started.")
         except Exception as e:
             logger.error(f"Error starting GPIO service: {e}")
@@ -178,19 +182,19 @@ class GpioService:
             thread.join()
         logger.info("GPIO service stopped.")
 
-    async def process_data(self):
-        while self.running:
+    def process_data(self, stop_event: threading.Event):
+        while not stop_event.is_set() and self.running:
             try:
                 data = self.data_queue.get(timeout=1)
                 if data["sensor_name"] == "gps":
-                    await self.process_gps_data(data["data"])
+                    asyncio.run(self.process_gps_data(data["data"]))
                 elif data["sensor_name"] == "sensors":
-                    await self.process_sensor_data(data["data"])
+                    asyncio.run(self.process_sensor_data(data["data"]))
             except queue.Empty:
                 continue
             except Exception as e:
                 logger.error(f"Error processing data: {e}")
-
+                
     async def process_gps_data(self, gps_data):
         try:
             driver_id = await get_last_driver_id() if not travel_state.get_travel_status() else current_driver.get_driver_id()
