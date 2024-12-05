@@ -3,7 +3,7 @@ import asyncio
 import pandas as pd
 from sklearn.cluster import DBSCAN
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 import logging
 from database.connector import DatabaseConnector
@@ -65,7 +65,6 @@ class ModelGenerator:
             latitude_mid = df['start_latitude'].mean()
             longitude_mid = df['start_longitude'].mean()
 
-
             def assign_quadrant(row):
                 if row['start_latitude'] >= latitude_mid and row['start_longitude'] >= longitude_mid:
                     return 'norte_oriente'
@@ -86,21 +85,31 @@ class ModelGenerator:
                 for quadrant in hourly_data['quadrant'].unique():
                     quadrant_data = hourly_data[hourly_data['quadrant'] == quadrant]
                     coords = quadrant_data[['start_latitude', 'start_longitude']].values
-                    db = DBSCAN(eps=0.005, min_samples=10).fit(coords)
+
+                    # Escalar coordenadas
+                    scaler = StandardScaler()
+                    coords_scaled = scaler.fit_transform(coords)
+
+                    # Clustering con DBSCAN
+                    db = DBSCAN(eps=0.005, min_samples=10).fit(coords_scaled)
                     quadrant_data['zone'] = db.labels_
 
-                    # Eliminar outliers
-                    quadrant_data = quadrant_data[quadrant_data['zone'] != -1]
+                    # Manejo de un único clúster o outliers
+                    if len(quadrant_data['zone'].unique()) < 2:
+                        logger.info(f"Only one cluster detected for hour {hour}, quadrant {quadrant}. Using mean prediction.")
+                        mean_value = quadrant_data['distance_mts'].mean()  # Ajustar según el objetivo
+                        model_buffer[(hour, quadrant)] = lambda X: [mean_value] * len(X)
+                        continue
 
                     # Preparar datos para el modelo de predicción
                     X = quadrant_data[['hour', 'day_of_week', 'start_latitude', 'start_longitude']]
-                    y = quadrant_data['zone']
+                    y = quadrant_data['distance_mts']  # Usar distancia como objetivo (ajustar según necesidad)
 
                     # Dividir los datos en entrenamiento y prueba
                     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-                    # Entrenar un modelo de regresión logística
-                    model = LogisticRegression()
+                    # Entrenar un modelo de regresión lineal
+                    model = LinearRegression()
                     model.fit(X_train, y_train)
 
                     # Guardar el modelo en el buffer
