@@ -89,11 +89,11 @@ class ModelGenerator:
                     coords = quadrant_data[['start_latitude', 'start_longitude']].values
                     scaler = StandardScaler()
                     coords_scaled = scaler.fit_transform(coords)
-                    db = DBSCAN(eps=0.01, min_samples=2).fit(coords_scaled)  # Valores ajustados
+                    db = DBSCAN(eps=0.01, min_samples=1).fit(coords_scaled)  # Valores ajustados
                     quadrant_data['zone'] = db.labels_
 
                     # Eliminar outliers
-                    quadrant_data = quadrant_data[quadrant_data['zone'] != -1]
+                    quadrant_data['zone'] = quadrant_data['zone'].replace(-1, 0)
 
                     if quadrant_data.empty:
                         logger.warning(f"No clusters found for hour {hour}, quadrant {quadrant}.")
@@ -101,8 +101,7 @@ class ModelGenerator:
 
                     # Validar número de clústeres
                     if len(quadrant_data['zone'].unique()) < 2:
-                        logger.warning(f"Skipping training for hour {hour}, quadrant {quadrant}. Only one cluster found.")
-                        continue
+                        logger.info(f"Training model for hour {hour}, quadrant {quadrant} with one cluster.")
 
                     # Preparar datos
                     X = quadrant_data[['hour', 'day_of_week', 'start_latitude', 'start_longitude']]
@@ -119,8 +118,9 @@ class ModelGenerator:
                     # Validar clases en 'y_train'
                     unique_train_classes = len(set(y_train))
                     if unique_train_classes < 2:
-                        logger.warning(f"Skipping training for hour {hour}, quadrant {quadrant}. Only one class in y_train.")
-                        continue
+                        logger.info(f"Training trivial model for hour {hour}, quadrant {quadrant}.")
+                        model = LogisticRegression()
+                        model.fit(X_train, np.zeros(len(X_train)))  # Entrenar con una clase
 
                     # Entrenar modelo
                     model = LogisticRegression()
