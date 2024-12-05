@@ -6,8 +6,11 @@ from kit.routers import router as kit_router
 from geolocation.routers import router as geolocation_router
 from services.gpio_service import gpio_service
 from services.model_service import ModelGenerator
+from database.connector import DatabaseConnector
 
-model_generator = ModelGenerator()
+db_connector = DatabaseConnector()
+
+model_generator = ModelGenerator(db_connector)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

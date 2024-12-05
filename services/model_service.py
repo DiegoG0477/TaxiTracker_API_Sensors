@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 import numpy as np
 import logging
-from database.connector import DatabaseConnector  # Tu clase DatabaseConnector
+from database.connector import DatabaseConnector
 
 # Configuración del logger
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +21,7 @@ class ModelGenerator(threading.Thread):
         super().__init__()
         self.interval = interval
         self.running = True
-        self.db_connector = DatabaseConnector()
+        self.db_connector = db_connector
 
     def stop(self):
         self.running = False
