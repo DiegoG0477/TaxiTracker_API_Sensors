@@ -256,5 +256,4 @@ class GpioService:
         except Exception as e:
             logger.error(f"Error processing sensor data: {e}")
 
-
 gpio_service = GpioService()

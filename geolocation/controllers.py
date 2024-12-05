@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 from database.connector import DatabaseConnector
+from services.model_service import model_buffer
 
 database = DatabaseConnector()
 
@@ -52,3 +53,34 @@ async def get_kit_id() -> str:
             raise ValueError("Unexpected result format from query_get")
     except Exception as e:
         return "Error occurred: " + str(e)
+    
+async def predict_heatmap(hour: int, day_of_week: int, latitude: float, longitude: float):
+    # Asignar cuadrante basado en coordenadas
+    latitude_mid = 16.75  # Ajustar según datos
+    longitude_mid = -93.1167  # Ajustar según datos
+
+    if latitude >= latitude_mid and longitude >= longitude_mid:
+        quadrant = 'norte_oriente'
+    elif latitude >= latitude_mid and longitude < longitude_mid:
+        quadrant = 'norte_poniente'
+    elif latitude < latitude_mid and longitude >= longitude_mid:
+        quadrant = 'sur_oriente'
+    else:
+        quadrant = 'sur_poniente'
+
+    # Obtener modelo del buffer
+    model_key = (hour, quadrant)
+    if model_key not in model_buffer:
+        raise HTTPException(status_code=404, detail="Model not found for the given parameters")
+
+    model = model_buffer[model_key]
+
+    # Predicción
+    X = [[hour, day_of_week, latitude, longitude]]
+    prediction = model.predict(X)
+
+    return {
+        "hour": hour,
+        "quadrant": quadrant,
+        "predictions": prediction.tolist(),
+    }
